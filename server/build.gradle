@@ -1,0 +1,58 @@
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'application'
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    main {
+        java {
+            srcDirs = ["src"]
+        }
+    }
+}
+
+dependencies {
+    compile('com.pi4j:pi4j-core:0.0.5') {
+        exclude module: 'pi4j-native'
+    }
+    compile('com.pi4j:pi4j-device:0.0.5') {
+        exclude module: 'pi4j-native'
+    }
+    compile('com.pi4j:pi4j-gpio-extension:0.0.5') {
+        exclude module: 'pi4j-native'
+    }
+    
+    compile "org.apache.commons:commons-collections4:4.0"
+    
+    //compile fileTree(dir: 'libs', include: '*.jar')
+
+    //testCompile "junit:junit:4.11"
+}
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+
+// http://www.gradle.org/docs/current/userguide/application_plugin.html
+mainClassName = "edu.sdsu.rocket.data.server.Launcher"
+
+eclipse {
+    project {
+        name = appName + "-server"
+    }
+}
+
+jar {
+    baseName = 'sdsu-rocket-data-server'
+    version = '1.0'
+    
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}
+
+tasks.eclipse.doLast {
+    delete ".project"
+}

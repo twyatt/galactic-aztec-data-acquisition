@@ -1,0 +1,39 @@
+allprojects {
+    apply plugin: "eclipse"
+    apply plugin: "idea"
+
+    ext {
+        appName = 'sdsu-rocket-data'
+        junitVersion = '[4,)'
+    }
+
+    tasks.withType(Test) {
+        testLogging {
+            events 'passed'
+        }
+    }
+}
+
+project(":core") {
+    apply plugin: "java"
+}
+
+project(":server") {
+    apply plugin: "java"
+
+    dependencies {
+        compile project(":core");
+    }
+}
+
+project(":client") {
+    apply plugin: "java"
+
+    dependencies {
+        compile project(":core");
+    }
+}
+
+tasks.eclipse.doLast {
+    delete ".project"
+}
