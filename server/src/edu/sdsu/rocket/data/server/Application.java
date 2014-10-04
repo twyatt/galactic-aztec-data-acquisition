@@ -11,7 +11,6 @@ import java.nio.ByteBuffer;
 
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
-import com.pi4j.system.SystemInfo;
 
 import edu.sdsu.rocket.data.io.Message;
 import edu.sdsu.rocket.data.models.Sensors;
@@ -103,6 +102,7 @@ public class Application {
 						}
 					}
 				} catch (IOException e) {
+					e.printStackTrace();
 					return;
 				}
 			}
@@ -182,13 +182,10 @@ public class Application {
 			case 't':
 			case 'T':
 				try {
-					float tempC = SystemInfo.getCpuTemperature();
+					float tempC = Pi.getCpuTemperature();
 					float tempF = tempC * 9f / 5f + 32f;
 					Console.log("CPU: " + tempC + " C, " + tempF + " F");
 				} catch (NumberFormatException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
