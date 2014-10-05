@@ -25,8 +25,8 @@ public class Launcher extends Application {
 		final MainController controller = loader.getController();
 		Scene scene = new Scene(root);
 		
-		stage.setWidth(800);
-		stage.setHeight(600);
+		stage.setWidth(1280);
+		stage.setHeight(720);
 		stage.setTitle(NAME);
 		stage.setScene(scene);
 		stage.show();

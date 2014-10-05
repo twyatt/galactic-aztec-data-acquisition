@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="600.0" stylesheets="@main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
    <top>
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <items>
@@ -13,12 +14,15 @@
             <Button fx:id="connectButton" mnemonicParsing="false" onAction="#onConnect" text="Connect" />
             <Separator />
             <Label text="Frequency" />
-            <Slider fx:id="frequencySlider" />
-            <Label fx:id="frequencyLabel" text="0 Hz" />
+            <Slider fx:id="frequencySlider" value="1.0" />
+            <Label fx:id="frequencyLabel" text="1 Hz" />
          </items>
       </ToolBar>
    </top>
    <center>
-      <FlowPane fx:id="gaugePane" prefHeight="200.0" prefWidth="200.0" BorderPane.alignment="CENTER" />
+      <FlowPane fx:id="gaugePane" hgap="5.0" prefHeight="200.0" prefWidth="200.0" vgap="5.0" BorderPane.alignment="CENTER">
+         <BorderPane.margin>
+            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
+         </BorderPane.margin></FlowPane>
    </center>
 </BorderPane>

@@ -1,0 +1,3 @@
+.gauge .value {
+    -fx-fill: ladder(-base, black 49%, white 50%);
+}

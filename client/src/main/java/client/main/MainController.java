@@ -9,6 +9,12 @@ import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
+import javafx.geometry.Side;
+import javafx.scene.chart.ChartBuilder;
+import javafx.scene.chart.LineChart;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.XYChart;
+import javafx.scene.chart.XYChart.Series;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
@@ -19,8 +25,9 @@ import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.Dialog;
 import org.controlsfx.dialog.Dialogs;
 
+import com.badlogic.gdx.math.Vector3;
+
 import client.io.DatagramClient;
-import client.math.MathHelper;
 import edu.sdsu.rocket.data.models.Sensors;
 import eu.hansolo.enzo.gauge.Gauge;
 import eu.hansolo.enzo.gauge.GaugeBuilder;
@@ -38,7 +45,26 @@ public class MainController {
 	@FXML private FlowPane gaugePane;
 	
 	private DatagramClient client = new DatagramClient();
-	private Gauge radial;
+	private Gauge lox;
+	private Gauge kerosene;
+	private Gauge helium;
+	private Gauge motor;
+	
+	private int chartIndex;
+	private static final int ACCELEROMETER_DATA_POINTS = 50;
+	private static final int GYROSCOPE_DATA_POINTS     = 50;
+	
+	private NumberAxis accelerometerX;
+	private Series<Number, Number> accelerometerXData = new XYChart.Series<Number, Number>();
+	private Series<Number, Number> accelerometerYData = new XYChart.Series<Number, Number>();
+	private Series<Number, Number> accelerometerZData = new XYChart.Series<Number, Number>();
+	
+	private NumberAxis gyroscopeX;
+	private Series<Number, Number> gyroscopeXData = new XYChart.Series<Number, Number>();
+	private Series<Number, Number> gyroscopeYData = new XYChart.Series<Number, Number>();
+	private Series<Number, Number> gyroscopeZData = new XYChart.Series<Number, Number>();
+	
+	private static final Vector3 tmpVec = new Vector3();
 	
 	/**
 	 * Constructor for the controller.
@@ -52,8 +78,47 @@ public class MainController {
 				Platform.runLater(new Runnable() {
 					@Override
 					public void run() {
-						float a = MathHelper.translate(sensors.analog[0] / 1000f, 0f, 3.3f, 0f, 600f);
-						radial.setValue(a);
+						motor.setValue(sensors.getMotorPressure());
+						lox.setValue(sensors.getLoxPressure());
+						kerosene.setValue(sensors.getKerosenePressure());
+						helium.setValue(sensors.getHeliumPressure());
+						
+						chartIndex++;
+						
+						Vector3 accelerometer = tmpVec;
+						sensors.getAccelerometer(accelerometer);
+						accelerometer.scl(9.8f);
+						accelerometerX.setLowerBound(chartIndex - ACCELEROMETER_DATA_POINTS + 1);
+						accelerometerX.setUpperBound(chartIndex);
+						while (accelerometerXData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
+							accelerometerXData.getData().remove(0);
+						}
+						while (accelerometerYData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
+							accelerometerYData.getData().remove(0);
+						}
+						while (accelerometerZData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
+							accelerometerZData.getData().remove(0);
+						}
+						accelerometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.x));
+						accelerometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.y));
+						accelerometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.z));
+						
+						Vector3 gyroscope = tmpVec;
+						sensors.getGyroscope(gyroscope);
+						gyroscopeX.setLowerBound(chartIndex - GYROSCOPE_DATA_POINTS + 1);
+						gyroscopeX.setUpperBound(chartIndex);
+						while (gyroscopeXData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+							gyroscopeXData.getData().remove(0);
+						}
+						while (gyroscopeYData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+							gyroscopeYData.getData().remove(0);
+						}
+						while (gyroscopeZData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+							gyroscopeZData.getData().remove(0);
+						}
+						gyroscopeXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.x));
+						gyroscopeYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.y));
+						gyroscopeZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.z));
 					}
 				});
 			}
@@ -82,20 +147,74 @@ public class MainController {
             }
         });
 
-		radial = GaugeBuilder.create()
+		motor    = makePressureGauge("Motor",    Sensors.MOTOR_MAX_PRESSURE,    1);
+		lox      = makePressureGauge("LOX",      Sensors.LOX_MAX_PRESSURE,      10);
+		kerosene = makePressureGauge("Kerosene", Sensors.KEROSENE_MAX_PRESSURE, 10);
+		helium   = makePressureGauge("Helium",   Sensors.HELIUM_MAX_PRESSURE,   50);
+		
+		accelerometerX = new NumberAxis();
+		NumberAxis accelerometerY = new NumberAxis();
+		accelerometerX.setAutoRanging(false);
+		accelerometerX.setTickLabelsVisible(false);
+		accelerometerY.setLabel("Acceleration (m/s^2)");
+		accelerometerY.setForceZeroInRange(true);
+		LineChart<Number, Number> accelerometer = makeChart("Accelerometer", accelerometerX, accelerometerY);
+		accelerometerXData.setName("X");
+		accelerometerYData.setName("Y");
+		accelerometerZData.setName("Z");
+		accelerometer.getData().add(accelerometerXData);
+		accelerometer.getData().add(accelerometerYData);
+		accelerometer.getData().add(accelerometerZData);
+		
+		gyroscopeX = new NumberAxis();
+		NumberAxis gyroscopeY = new NumberAxis();
+		gyroscopeX.setAutoRanging(false);
+		gyroscopeX.setTickLabelsVisible(false);
+		gyroscopeY.setLabel("Rotation (deg/sec)");
+		gyroscopeY.setForceZeroInRange(true);
+		LineChart<Number, Number> gyroscope = makeChart("Gyroscope", gyroscopeX, gyroscopeY);
+		gyroscopeXData.setName("X");
+		gyroscopeYData.setName("Y");
+		gyroscopeZData.setName("Z");
+		gyroscope.getData().add(gyroscopeXData);
+		gyroscope.getData().add(gyroscopeYData);
+		gyroscope.getData().add(gyroscopeZData);
+		
+		gaugePane.getChildren().add(lox);
+		gaugePane.getChildren().add(kerosene);
+		gaugePane.getChildren().add(helium);
+		gaugePane.getChildren().add(motor);
+		gaugePane.getChildren().add(accelerometer);
+		gaugePane.getChildren().add(gyroscope);
+	}
+
+	private LineChart<Number, Number> makeChart(String title, NumberAxis x, NumberAxis y) {
+		LineChart<Number, Number> chart = new LineChart<Number, Number>(x, y);
+		chart.setTitle(title);
+		chart.setCreateSymbols(false);
+		chart.setAnimated(false);
+		chart.setHorizontalZeroLineVisible(true);
+		chart.setLegendSide(Side.RIGHT);
+		chart.setPrefWidth(600);
+		chart.setPrefHeight(300);
+		return chart;
+	}
+
+	private Gauge makePressureGauge(String label, double maxValue, double minorTickSpace) {
+		return GaugeBuilder.create()
 				.prefWidth(300).prefHeight(300)
-				.title("LOX")
+				.styleClass("gauge")
+				.title(label)
 				.unit("PSI")
 				.minValue(0)
-				.maxValue(600)
-				.majorTickSpace(100)
-				.minorTickSpace(10)
+				.maxValue(maxValue)
+				.majorTickSpace(minorTickSpace * 10)
+				.minorTickSpace(minorTickSpace)
 				.minMeasuredValueVisible(true)
 				.maxMeasuredValueVisible(true)
 				.animated(false)
 				.decimals(1)
 				.build();
-		gaugePane.getChildren().add(radial);
 	}
 	
 	@FXML

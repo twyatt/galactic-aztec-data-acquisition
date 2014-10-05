@@ -4,7 +4,19 @@ import java.nio.ByteBuffer;
 
 import com.badlogic.gdx.math.Vector3;
 
+import edu.sdsu.rocket.data.helpers.MathHelper;
+
 public class Sensors {
+	
+	public static final int MOTOR_INDEX    = 0;
+	public static final int LOX_INDEX      = 1;
+	public static final int KEROSENE_INDEX = 2;
+	public static final int HELIUM_INDEX   = 3;
+	
+	public static final double MOTOR_MAX_PRESSURE    = 100;
+	public static final double LOX_MAX_PRESSURE      = 600;
+	public static final double KEROSENE_MAX_PRESSURE = 600;
+	public static final double HELIUM_MAX_PRESSURE   = 2500;
 
 	private float accelerometerScalingFactor;
 	private float gyroscopeScalingFactor;
@@ -41,7 +53,7 @@ public class Sensors {
 	 * 
 	 * @param v
 	 */
-	public void getGryoscope(Vector3 v) {
+	public void getGyroscope(Vector3 v) {
 		v.set(gyroscope[0], gyroscope[1], gyroscope[2])
 			.scl(gyroscopeScalingFactor);
 	}
@@ -62,6 +74,26 @@ public class Sensors {
 	 */
 	public float getBarometerPressure() {
 		return (float) barometer[1] / 100f;
+	}
+	
+	public float getMotorPressure() {
+		float volts = analog[MOTOR_INDEX] / 1000f;
+		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) MOTOR_MAX_PRESSURE);
+	}
+	
+	public float getLoxPressure() {
+		float volts = analog[LOX_INDEX] / 1000f;
+		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) LOX_MAX_PRESSURE);
+	}
+	
+	public float getKerosenePressure() {
+		float volts = analog[KEROSENE_INDEX] / 1000f;
+		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) KEROSENE_MAX_PRESSURE);
+	}
+	
+	public float getHeliumPressure() {
+		float volts = analog[HELIUM_INDEX] / 1000f;
+		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) HELIUM_MAX_PRESSURE);
 	}
 	
 	public void toByteBuffer(ByteBuffer buffer) {

@@ -1,4 +1,4 @@
-package client.math;
+package edu.sdsu.rocket.data.helpers;
 
 public class MathHelper {
 
