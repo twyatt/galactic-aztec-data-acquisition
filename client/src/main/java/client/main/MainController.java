@@ -2,7 +2,6 @@ package client.main;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -10,7 +9,6 @@ import javafx.beans.value.ObservableValue;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.geometry.Side;
-import javafx.scene.chart.ChartBuilder;
 import javafx.scene.chart.LineChart;
 import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.XYChart;
@@ -25,15 +23,18 @@ import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.Dialog;
 import org.controlsfx.dialog.Dialogs;
 
+import client.io.DatagramClient;
+
 import com.badlogic.gdx.math.Vector3;
 
-import client.io.DatagramClient;
 import edu.sdsu.rocket.data.models.Sensors;
 import eu.hansolo.enzo.gauge.Gauge;
 import eu.hansolo.enzo.gauge.GaugeBuilder;
 
 @SuppressWarnings("deprecation")
 public class MainController {
+	
+	private static final int PORT = 4444;
 	
 	private static final String CONNECT    = "Connect";
 	private static final String DISCONNECT = "Disconnect";
@@ -78,47 +79,7 @@ public class MainController {
 				Platform.runLater(new Runnable() {
 					@Override
 					public void run() {
-						motor.setValue(sensors.getMotorPressure());
-						lox.setValue(sensors.getLoxPressure());
-						kerosene.setValue(sensors.getKerosenePressure());
-						helium.setValue(sensors.getHeliumPressure());
-						
-						chartIndex++;
-						
-						Vector3 accelerometer = tmpVec;
-						sensors.getAccelerometer(accelerometer);
-						accelerometer.scl(9.8f);
-						accelerometerX.setLowerBound(chartIndex - ACCELEROMETER_DATA_POINTS + 1);
-						accelerometerX.setUpperBound(chartIndex);
-						while (accelerometerXData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
-							accelerometerXData.getData().remove(0);
-						}
-						while (accelerometerYData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
-							accelerometerYData.getData().remove(0);
-						}
-						while (accelerometerZData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
-							accelerometerZData.getData().remove(0);
-						}
-						accelerometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.x));
-						accelerometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.y));
-						accelerometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.z));
-						
-						Vector3 gyroscope = tmpVec;
-						sensors.getGyroscope(gyroscope);
-						gyroscopeX.setLowerBound(chartIndex - GYROSCOPE_DATA_POINTS + 1);
-						gyroscopeX.setUpperBound(chartIndex);
-						while (gyroscopeXData.getData().size() >= GYROSCOPE_DATA_POINTS) {
-							gyroscopeXData.getData().remove(0);
-						}
-						while (gyroscopeYData.getData().size() >= GYROSCOPE_DATA_POINTS) {
-							gyroscopeYData.getData().remove(0);
-						}
-						while (gyroscopeZData.getData().size() >= GYROSCOPE_DATA_POINTS) {
-							gyroscopeZData.getData().remove(0);
-						}
-						gyroscopeXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.x));
-						gyroscopeYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.y));
-						gyroscopeZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.z));
+						updateSensors(sensors);
 					}
 				});
 			}
@@ -147,6 +108,10 @@ public class MainController {
             }
         });
 
+		createSensors();
+	}
+
+	private void createSensors() {
 		motor    = makePressureGauge("Motor",    Sensors.MOTOR_MAX_PRESSURE,    1);
 		lox      = makePressureGauge("LOX",      Sensors.LOX_MAX_PRESSURE,      10);
 		kerosene = makePressureGauge("Kerosene", Sensors.KEROSENE_MAX_PRESSURE, 10);
@@ -217,13 +182,56 @@ public class MainController {
 				.build();
 	}
 	
+	public void updateSensors(Sensors sensors) {
+		motor.setValue(sensors.getMotorPressure());
+		lox.setValue(sensors.getLoxPressure());
+		kerosene.setValue(sensors.getKerosenePressure());
+		helium.setValue(sensors.getHeliumPressure());
+		
+		chartIndex++;
+		
+		Vector3 accelerometer = tmpVec;
+		sensors.getAccelerometer(accelerometer);
+		accelerometer.scl(9.8f);
+		accelerometerX.setLowerBound(chartIndex - ACCELEROMETER_DATA_POINTS + 1);
+		accelerometerX.setUpperBound(chartIndex);
+		while (accelerometerXData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
+			accelerometerXData.getData().remove(0);
+		}
+		while (accelerometerYData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
+			accelerometerYData.getData().remove(0);
+		}
+		while (accelerometerZData.getData().size() >= ACCELEROMETER_DATA_POINTS) {
+			accelerometerZData.getData().remove(0);
+		}
+		accelerometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.x));
+		accelerometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.y));
+		accelerometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.z));
+		
+		Vector3 gyroscope = tmpVec;
+		sensors.getGyroscope(gyroscope);
+		gyroscopeX.setLowerBound(chartIndex - GYROSCOPE_DATA_POINTS + 1);
+		gyroscopeX.setUpperBound(chartIndex);
+		while (gyroscopeXData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+			gyroscopeXData.getData().remove(0);
+		}
+		while (gyroscopeYData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+			gyroscopeYData.getData().remove(0);
+		}
+		while (gyroscopeZData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+			gyroscopeZData.getData().remove(0);
+		}
+		gyroscopeXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.x));
+		gyroscopeYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.y));
+		gyroscopeZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.z));
+	}
+	
 	@FXML
 	private void onConnect(ActionEvent event) {
 		if (CONNECT.equals(connectButton.getText())) {
 			try {
 				InetAddress addr = InetAddress.getByName(hostTextField.getText());
-				client.setRemoteAddress(new InetSocketAddress(addr, 4444));
-				client.start();
+				client.start(addr, PORT);
 				if (frequencySlider.getValue() != 0) {
 					client.setFrequency((float) frequencySlider.getValue());
 					client.resume();
@@ -258,5 +266,5 @@ public class MainController {
 			.showConfirm();
 		return response == Dialog.ACTION_YES;
 	}
-	
+
 }

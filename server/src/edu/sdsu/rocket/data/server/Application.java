@@ -1,17 +1,18 @@
 package edu.sdsu.rocket.data.server;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
-import java.net.SocketException;
 import java.nio.ByteBuffer;
 
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
 
+import edu.sdsu.rocket.data.helpers.Stopwatch;
 import edu.sdsu.rocket.data.io.Message;
 import edu.sdsu.rocket.data.models.Sensors;
 import edu.sdsu.rocket.data.server.devices.ADS1115;
@@ -20,14 +21,17 @@ import edu.sdsu.rocket.data.server.devices.ADXL345;
 import edu.sdsu.rocket.data.server.devices.ITG3205;
 import edu.sdsu.rocket.data.server.devices.MS5611;
 import edu.sdsu.rocket.data.server.devices.MS5611Wrapper;
-import edu.sdsu.rocket.data.server.models.Request;
+import edu.sdsu.rocket.data.server.io.DataLogger;
+import edu.sdsu.rocket.data.server.io.DatagramServer;
 
 public class Application {
 	
 	private static final int SERVER_PORT = 4444;
 	private static final int BUFFER_SIZE = 64; // bytes
 	
-	private static final byte SENSOR_REQUEST = 0x1;
+	private static final String FILE_SEPARATOR = System.getProperty("file.separator");
+	
+	private static final String ADS1115_LOG = "ads1115.log";
 	
 	// http://pi.gadgetoid.com/pinout
 	ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
@@ -35,11 +39,11 @@ public class Application {
 	MS5611Wrapper ms5611 = new MS5611Wrapper(new MS5611(I2CBus.BUS_1));
 	ADS1115Wrapper ads1115 = new ADS1115Wrapper(new ADS1115(I2CBus.BUS_1));
 
+	private DataLogger logger;
 	private DatagramServer server;
 	private int messageNumber;
 	
 	private final Reader input = new InputStreamReader(System.in);
-	
 	private final Sensors sensors;
 	
 	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
@@ -53,7 +57,20 @@ public class Application {
 		this.sensors = sensors;
 	}
 	
-	private void setupSensors() throws IOException {
+	public void setup() throws IOException {
+		sensorSetup();
+		loggerSetup();
+		serverSetup();
+		Stopwatch.reset();
+	}
+	
+	public void loop() throws IOException {
+		sensorLoop();
+		serverLoop();
+		inputLoop();
+	}
+	
+	private void sensorSetup() throws IOException {
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
 			throw new IOException("Failed to verify ADXL345 device ID");
@@ -87,26 +104,17 @@ public class Application {
 		ads1115.setTimeout(timeout);
 	}
 	
-	private void setupServer() throws SocketException {
+	private void loggerSetup() throws IOException {
+		File userDir = new File(System.getProperty("user.dir", "~"));
+		if (!userDir.exists()) {
+			throw new IOException("Directory does not exist: " + userDir);
+		}
+		File logDir = new File(userDir + FILE_SEPARATOR + "logs");
+		logger = new DataLogger(logDir);
+	}
+	
+	private void serverSetup() throws IOException {
 		server = new DatagramServer(SERVER_PORT);
-		server.setRequestHandler(new DatagramServer.RequestHandler() {
-			@Override
-			public void onRequest(Request request) {
-//				System.out.println("Request: '" + ByteHelper.bytesToHexString(request.data) + "' from " + request.address);
-				try {
-					for (byte data : request.data) {
-						switch (data) {
-						case SENSOR_REQUEST:
-							sendSensorData(request.address);
-							return; // ignore subsequent sensor requests to prevent flooding the outgoing buffer
-						}
-					}
-				} catch (IOException e) {
-					e.printStackTrace();
-					return;
-				}
-			}
-		});
 		server.start();
 	}
 
@@ -124,12 +132,8 @@ public class Application {
 			dataBuffer.flip();
 			
 			buffer.clear();
-			for (byte b : Message.START_BYTES) {
-				buffer.put(b);
-			}
 			buffer.putInt(++messageNumber);
-			buffer.put(Message.SENSOR_RESPONSE);
-			buffer.putInt(dataBuffer.limit());
+			buffer.put(Message.SENSOR);
 			buffer.put(dataBuffer);
 			buffer.flip();
 			
@@ -157,10 +161,25 @@ public class Application {
 		
 		status = ads1115.read(sensors.analog);
 		if (status == 0) {
-			// TODO log adc values
+//			logger.log(ADS1115_LOG, sensors.analog);
 		} else if (status > 0) { // error
 //			Console.error("ADS1115 error code " + status + ".");
 			// TODO log adc error
+		}
+	}
+	
+	private void serverLoop() {
+		Message message = server.read();
+		if (message != null) {
+			try {
+				switch (message.id) {
+				case Message.SENSOR:
+					sendSensorData(message.address);
+					break;
+				}
+			} catch (IOException e) {
+				System.err.println(e.getMessage());
+			}
 		}
 	}
 
@@ -203,7 +222,7 @@ public class Application {
 				break;
 			case 'g':
 			case 'G':
-				sensors.getGryoscope(tmpVec);
+				sensors.getGyroscope(tmpVec);
 				Console.log(tmpVec + " deg/s");
 				break;
 			case 'c':
@@ -217,17 +236,6 @@ public class Application {
 				System.exit(0);
 			}
 		}
-	}
-	
-	public void setup() throws IOException {
-		setupSensors();
-		setupServer();
-	}
-	
-	public void loop() throws IOException {
-		sensorLoop();
-		server.loop();
-		inputLoop();
 	}
 	
 }

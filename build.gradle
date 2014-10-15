@@ -1,10 +1,14 @@
 allprojects {
     apply plugin: "eclipse"
     apply plugin: "idea"
+    apply plugin: "java"
+    
+    repositories {
+        mavenCentral()
+    }
 
     ext {
         appName = 'sdsu-rocket-data'
-        junitVersion = '[4,)'
     }
 
     tasks.withType(Test) {
@@ -14,21 +18,13 @@ allprojects {
     }
 }
 
-project(":core") {
-    apply plugin: "java"
-}
-
 project(":server") {
-    apply plugin: "java"
-
     dependencies {
         compile project(":core");
     }
 }
 
 project(":client") {
-    apply plugin: "java"
-
     dependencies {
         compile project(":core");
     }

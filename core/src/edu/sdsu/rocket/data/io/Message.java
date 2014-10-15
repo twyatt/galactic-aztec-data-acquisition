@@ -1,12 +1,14 @@
 package edu.sdsu.rocket.data.io;
 
+import java.net.SocketAddress;
+
 public class Message {
 	
-	public static final byte[] START_BYTES = new byte[] { (byte) 0xF0, 0x0D };
-
-	public static final byte SENSOR_REQUEST = 0x1;
-	public static final byte SENSOR_RESPONSE = 0x1;
+	public static final byte PING   = 0x0;
+	public static final byte SENSOR = 0x1;
 	
+	public SocketAddress address;
+	public int number;
 	public int id;
 	public byte[] data;
 	

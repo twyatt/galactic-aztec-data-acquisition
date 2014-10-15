@@ -3,20 +3,22 @@ package client.io;
 import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 
 import edu.sdsu.rocket.data.io.Message;
+import edu.sdsu.rocket.data.io.MessageHandler;
+import edu.sdsu.rocket.data.io.MessageHandler.MessageListener;
+import edu.sdsu.rocket.data.io.PacketRunnable;
 import edu.sdsu.rocket.data.models.Sensors;
 
-public class DatagramClient {
+public class DatagramClient implements MessageListener {
 	
 	public interface ClientListener {
 		public void onSensorData(Sensors sensors);
 	}
-	
-	private static final int MAX_DATA_LENGTH = 65536;
 	
 	private Sensors sensors = new Sensors();
 
@@ -24,11 +26,12 @@ public class DatagramClient {
 	private DatagramSocket socket;
 	
 	private Thread listenThread;
-	private ListenRunnable listenRunnable;
-	private MessageInputStream in;
+	private PacketRunnable listenRunnable;
 	
 	private Thread requestThread;
 	private RequestRunnable requestRunnable;
+	private int requestNumber; // message request number
+	private int responseNumber; // message response number
 
 	private ClientListener listener;
 	
@@ -36,24 +39,20 @@ public class DatagramClient {
 		this.listener = listener;
 	}
 	
-	public void setRemoteAddress(InetSocketAddress address) {
-		this.address = address;
-	}
-	
 	public void setFrequency(float frequency) {
 		requestRunnable.setFrequency(frequency);
 	}
 	
-	public void start() throws SocketException {
+	public void start(InetAddress addr, int port) throws SocketException {
 		socket = new DatagramSocket();
-		in = new MessageInputStream(new DatagramInputStream(socket), Message.START_BYTES, MAX_DATA_LENGTH);
+		address = new InetSocketAddress(addr, port);
 		
 		requestRunnable = new RequestRunnable();
 		requestThread = new Thread(requestRunnable);
 		requestThread.setName(requestRunnable.getClass().getSimpleName());
 		requestThread.start();
 		
-		listenRunnable = new ListenRunnable();
+		listenRunnable = new PacketRunnable(socket, new MessageHandler(this));
 		listenThread = new Thread(listenRunnable);
 		listenThread.setName(listenRunnable.getClass().getSimpleName());
 		listenThread.start();
@@ -90,17 +89,27 @@ public class DatagramClient {
 	}
 	
 	public void sendSensorRequest() {
-		send(Message.SENSOR_REQUEST);
+		sendMessage(Message.SENSOR);
 	}
 	
-	public void send(byte b) {
+	public void sendMessage(byte id) {
+		sendMessage(id, null);
+	}
+	
+	public void sendMessage(byte id, byte[] data) {
 		if (address == null)
 			return;
 		
-		byte[] data = new byte[1];
-		data[0] = b;
-		DatagramPacket packet = new DatagramPacket(data, data.length, address);
+		int length = data == null ? 0 : data.length;
+		byte[] raw = new byte[5 + length]; // NUMBER + ID = 4 + 1 = 5
+		ByteBuffer buffer = ByteBuffer.wrap(raw);
+		buffer.putInt(++requestNumber);
+		buffer.put(id);
+		if (data != null) {
+			buffer.put(data);
+		}
 		
+		DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.position(), address);
 		try {
 			socket.send(packet);
 		} catch (IOException e) {
@@ -108,9 +117,18 @@ public class DatagramClient {
 		}
 	}
 	
-	public void onReceivedMessage(Message message) {
+	@Override
+	public void onMessageReceived(Message message) {
+		if (message.number != 0) {
+			if (message.number < responseNumber) {
+				return; // drop packet
+			} else {
+				responseNumber = message.number;
+			}
+		}
+		
 		switch (message.id) {
-		case Message.SENSOR_RESPONSE:
+		case Message.SENSOR:
 			// TODO catch buffer underflow
 			sensors.fromByteBuffer(ByteBuffer.wrap(message.data));
 			
@@ -118,26 +136,6 @@ public class DatagramClient {
 				listener.onSensorData(sensors);
 			}
 		}
-	}
-	
-	private class ListenRunnable implements Runnable {
-		
-		@Override
-		public void run() {
-			while (!Thread.currentThread().isInterrupted()) {
-				try {
-					onReceivedMessage(in.readMessage());
-				} catch (IOException e) {
-					e.printStackTrace();
-					try {
-						Thread.sleep(250L);
-					} catch (InterruptedException e1) {
-						return;
-					}
-				}
-			}
-		}
-		
 	}
 	
 	private class RequestRunnable implements Runnable {
