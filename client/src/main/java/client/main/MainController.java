@@ -2,6 +2,8 @@ package client.main;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.ArrayList;
+import java.util.List;
 
 import javafx.application.Platform;
 import javafx.beans.value.ChangeListener;
@@ -18,6 +20,7 @@ import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.paint.Color;
 
 import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.Dialog;
@@ -28,12 +31,14 @@ import client.io.DatagramClient;
 import com.badlogic.gdx.math.Vector3;
 
 import edu.sdsu.rocket.data.models.Sensors;
+import eu.hansolo.enzo.common.Section;
 import eu.hansolo.enzo.gauge.Gauge;
 import eu.hansolo.enzo.gauge.GaugeBuilder;
 
 @SuppressWarnings("deprecation")
 public class MainController {
 	
+	private static final boolean DEBUG_SENSORS = true;
 	private static final int PORT = 4444;
 	
 	private static final String CONNECT    = "Connect";
@@ -112,10 +117,28 @@ public class MainController {
 	}
 
 	private void createSensors() {
-		motor    = makePressureGauge("Motor",    Sensors.MOTOR_MAX_PRESSURE,    1);
-		lox      = makePressureGauge("LOX",      Sensors.LOX_MAX_PRESSURE,      10);
-		kerosene = makePressureGauge("Kerosene", Sensors.KEROSENE_MAX_PRESSURE, 10);
-		helium   = makePressureGauge("Helium",   Sensors.HELIUM_MAX_PRESSURE,   50);
+		if (DEBUG_SENSORS) {
+			motor    = makePressureGauge("Motor",    "mV", 5000, 100);
+			lox      = makePressureGauge("LOX",      "mV", 5000, 100);
+			kerosene = makePressureGauge("Kerosene", "mV", 5000, 100);
+			helium   = makePressureGauge("Helium",   "mV", 5000, 100);
+			
+			List<Section> sections = new ArrayList<Section>();
+			sections.add(new Section(3300, 3600));
+			sections.add(new Section(3600, 5000));
+			
+			Gauge[] gauges = new Gauge[] { motor, lox, kerosene, helium };
+			for (Gauge gauge : gauges) {
+				gauge.setSections(sections);
+				gauge.setSectionFill0(Color.YELLOW);
+				gauge.setSectionFill1(Color.RED);
+			}
+		} else {
+			motor    = makePressureGauge("Motor",    "PSI", Sensors.MOTOR_MAX_PRESSURE,    1);
+			lox      = makePressureGauge("LOX",      "PSI", Sensors.LOX_MAX_PRESSURE,      10);
+			kerosene = makePressureGauge("Kerosene", "PSI", Sensors.KEROSENE_MAX_PRESSURE, 10);
+			helium   = makePressureGauge("Helium",   "PSI", Sensors.HELIUM_MAX_PRESSURE,   50);
+		}
 		
 		accelerometerX = new NumberAxis();
 		NumberAxis accelerometerY = new NumberAxis();
@@ -165,12 +188,12 @@ public class MainController {
 		return chart;
 	}
 
-	private Gauge makePressureGauge(String label, double maxValue, double minorTickSpace) {
+	private Gauge makePressureGauge(String label, String unit, double maxValue, double minorTickSpace) {
 		return GaugeBuilder.create()
 				.prefWidth(300).prefHeight(300)
 				.styleClass("gauge")
 				.title(label)
-				.unit("PSI")
+				.unit(unit)
 				.minValue(0)
 				.maxValue(maxValue)
 				.majorTickSpace(minorTickSpace * 10)
@@ -183,10 +206,17 @@ public class MainController {
 	}
 	
 	public void updateSensors(Sensors sensors) {
-		motor.setValue(sensors.getMotorPressure());
-		lox.setValue(sensors.getLoxPressure());
-		kerosene.setValue(sensors.getKerosenePressure());
-		helium.setValue(sensors.getHeliumPressure());
+		if (DEBUG_SENSORS) {
+			motor.setValue(sensors.analog[0]);
+			lox.setValue(sensors.analog[1]);
+			kerosene.setValue(sensors.analog[2]);
+			helium.setValue(sensors.analog[3]);
+		} else {
+			motor.setValue(sensors.getMotorPressure());
+			lox.setValue(sensors.getLoxPressure());
+			kerosene.setValue(sensors.getKerosenePressure());
+			helium.setValue(sensors.getHeliumPressure());
+		}
 		
 		chartIndex++;
 		
