@@ -1,4 +1,6 @@
 include 'core'
 include 'server'
-include 'client'
+include 'data'
+include 'control'
+include 'log2csv'
 

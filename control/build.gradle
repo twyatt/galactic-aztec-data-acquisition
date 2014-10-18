@@ -1,0 +1,14 @@
+apply from: 'javafx.plugin'
+
+dependencies {
+    compile "eu.hansolo.enzo:Enzo:0.1.5"
+    compile "org.controlsfx:controlsfx:8.20.7"
+}
+
+sourceCompatibility = 1.7
+
+eclipse {
+    project {
+        name = appName + "-control"
+    }
+}

@@ -8,7 +8,7 @@ allprojects {
     }
 
     ext {
-        appName = 'sdsu-rocket-data'
+        appName = 'sdsu-rocket'
     }
 
     tasks.withType(Test) {
@@ -24,7 +24,19 @@ project(":server") {
     }
 }
 
-project(":client") {
+project(":data") {
+    dependencies {
+        compile project(":core");
+    }
+}
+
+project(":control") {
+    dependencies {
+        compile project(":core");
+    }
+}
+
+project(":log2csv") {
     dependencies {
         compile project(":core");
     }

@@ -11,20 +11,7 @@ sourceSets {
 }
 
 dependencies {
-    compile('com.pi4j:pi4j-core:0.0.5') {
-        exclude module: 'pi4j-native'
-    }
-    compile('com.pi4j:pi4j-device:0.0.5') {
-        exclude module: 'pi4j-native'
-    }
-    compile('com.pi4j:pi4j-gpio-extension:0.0.5') {
-        exclude module: 'pi4j-native'
-    }
-    
-    compile "org.apache.commons:commons-collections4:4.0"
-    
     //compile fileTree(dir: 'libs', include: '*.jar')
-
     //testCompile "junit:junit:4.11"
 }
 
@@ -32,16 +19,16 @@ sourceCompatibility = 1.7
 targetCompatibility = 1.7
 
 // http://www.gradle.org/docs/current/userguide/application_plugin.html
-mainClassName = "edu.sdsu.rocket.server.Launcher"
+mainClassName = "edu.sdsu.rocket.log2csv.Launcher"
 
 eclipse {
     project {
-        name = appName + "-server"
+        name = appName + "-log2csv"
     }
 }
 
 jar {
-    baseName = 'sdsu-rocket-server'
+    baseName = 'log2csv'
     version = '1.0'
     
     manifest {
