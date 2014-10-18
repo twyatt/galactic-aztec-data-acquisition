@@ -120,7 +120,7 @@ public class DatagramClient implements MessageListener {
 	@Override
 	public void onMessageReceived(Message message) {
 		if (message.number != 0) {
-			if (message.number < responseNumber) {
+			if (message.number < responseNumber || message.number > requestNumber) {
 				return; // drop packet
 			} else {
 				responseNumber = message.number;
