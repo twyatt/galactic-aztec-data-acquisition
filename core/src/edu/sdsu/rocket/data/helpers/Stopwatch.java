@@ -2,9 +2,13 @@ package edu.sdsu.rocket.data.helpers;
 
 public class Stopwatch {
 
-	private static long start = System.nanoTime();
+	private long start;
 	
-	public static void reset() {
+	public Stopwatch() {
+		reset();
+	}
+	
+	public void reset() {
 		start = System.nanoTime();
 	}
 	
@@ -13,7 +17,7 @@ public class Stopwatch {
 	 * 
 	 * @return Time elapsed since reset (seconds).
 	 */
-	public static float secondsElapsed() {
+	public float secondsElapsed() {
 		return nanoSecondsElapsed() / 1000000000f;
 	}
 	
@@ -22,7 +26,7 @@ public class Stopwatch {
 	 * 
 	 * @return Time elapsed since reset (nanoseconds).
 	 */
-	public static long nanoSecondsElapsed() {
+	public long nanoSecondsElapsed() {
 		return System.nanoTime() - start;
 	}
 	

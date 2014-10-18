@@ -8,6 +8,13 @@ import edu.sdsu.rocket.data.helpers.MathHelper;
 
 public class Sensors {
 	
+	public static final int BAROMETER_TEMPERATURE_INDEX = 0;
+	public static final int BAROMETER_PRESSURE_INDEX    = 1;
+	
+	public static final int X_INDEX = 0;
+	public static final int Y_INDEX = 1;
+	public static final int Z_INDEX = 2;
+	
 	public static final int MOTOR_INDEX    = 0;
 	public static final int LOX_INDEX      = 1;
 	public static final int KEROSENE_INDEX = 2;
@@ -21,17 +28,25 @@ public class Sensors {
 	private float accelerometerScalingFactor;
 	private float gyroscopeScalingFactor;
 	
-	public final short[] accelerometer = new short[3];
-	public final short[] gyroscope = new short[3];
-	public final int[] barometer = new int[2];
+	public final short[] accelerometer = new short[3]; // G * scale
+	public final short[] gyroscope = new short[3]; // deg/sec * scale
+	public final int[] barometer = new int[2]; // C * 100, mbar * 100
 	public final float[] analog = new float[4]; // mV
 	
 	public void setAccelerometerScalingFactor(float scale) {
 		accelerometerScalingFactor = scale;
 	}
 	
-	public void setGryroscopeScalingFactor(float scale) {
+	public float getAccelerometerScalingFactor() {
+		return accelerometerScalingFactor;
+	}
+	
+	public void setGyroscopeScalingFactor(float scale) {
 		gyroscopeScalingFactor = scale;
+	}
+	
+	public float getGyroscopeScalingFactor() {
+		return gyroscopeScalingFactor;
 	}
 	
 	/**
@@ -42,7 +57,7 @@ public class Sensors {
 	 * @param v
 	 */
 	public void getAccelerometer(Vector3 v) {
-		v.set(accelerometer[0], accelerometer[1], accelerometer[2])
+		v.set(accelerometer[X_INDEX], accelerometer[Y_INDEX], accelerometer[Z_INDEX])
 			.scl(accelerometerScalingFactor);
 	}
 	
@@ -54,7 +69,7 @@ public class Sensors {
 	 * @param v
 	 */
 	public void getGyroscope(Vector3 v) {
-		v.set(gyroscope[0], gyroscope[1], gyroscope[2])
+		v.set(gyroscope[X_INDEX], gyroscope[Y_INDEX], gyroscope[Z_INDEX])
 			.scl(gyroscopeScalingFactor);
 	}
 	
@@ -64,7 +79,7 @@ public class Sensors {
 	 * @return Barometer temperature (C)
 	 */
 	public float getBarometerTemperature() {
-		return (float) barometer[0] / 100f;
+		return (float) barometer[BAROMETER_TEMPERATURE_INDEX] / 100f;
 	}
 	
 	/**
@@ -73,7 +88,7 @@ public class Sensors {
 	 * @return Barometer pressure (mbar)
 	 */
 	public float getBarometerPressure() {
-		return (float) barometer[1] / 100f;
+		return (float) barometer[BAROMETER_PRESSURE_INDEX] / 100f;
 	}
 	
 	public float getMotorPressure() {
@@ -97,37 +112,43 @@ public class Sensors {
 	}
 	
 	public void toByteBuffer(ByteBuffer buffer) {
-		buffer.putFloat(analog[0]);
-		buffer.putFloat(analog[1]);
-		buffer.putFloat(analog[2]);
-		buffer.putFloat(analog[3]);
-		buffer.putInt(barometer[0]);
-		buffer.putInt(barometer[1]);
-		buffer.putShort(accelerometer[0]);
-		buffer.putShort(accelerometer[1]);
-		buffer.putShort(accelerometer[2]);
+		buffer.putFloat(analog[MOTOR_INDEX]);
+		buffer.putFloat(analog[LOX_INDEX]);
+		buffer.putFloat(analog[KEROSENE_INDEX]);
+		buffer.putFloat(analog[HELIUM_INDEX]);
+		
+		buffer.putInt(barometer[BAROMETER_TEMPERATURE_INDEX]);
+		buffer.putInt(barometer[BAROMETER_PRESSURE_INDEX]);
+		
 		buffer.putFloat(accelerometerScalingFactor);
-		buffer.putShort(gyroscope[0]);
-		buffer.putShort(gyroscope[1]);
-		buffer.putShort(gyroscope[2]);
+		buffer.putShort(accelerometer[X_INDEX]);
+		buffer.putShort(accelerometer[Y_INDEX]);
+		buffer.putShort(accelerometer[Z_INDEX]);
+		
 		buffer.putFloat(gyroscopeScalingFactor);
+		buffer.putShort(gyroscope[X_INDEX]);
+		buffer.putShort(gyroscope[Y_INDEX]);
+		buffer.putShort(gyroscope[Z_INDEX]);
 	}
 	
 	public void fromByteBuffer(ByteBuffer buffer) {
-		analog[0] = buffer.getFloat();
-		analog[1] = buffer.getFloat();
-		analog[2] = buffer.getFloat();
-		analog[3] = buffer.getFloat();
-		barometer[0] = buffer.getInt();
-		barometer[1] = buffer.getInt();
-		accelerometer[0] = buffer.getShort();
-		accelerometer[1] = buffer.getShort();
-		accelerometer[2] = buffer.getShort();
+		analog[MOTOR_INDEX]    = buffer.getFloat();
+		analog[LOX_INDEX]      = buffer.getFloat();
+		analog[KEROSENE_INDEX] = buffer.getFloat();
+		analog[HELIUM_INDEX]   = buffer.getFloat();
+		
+		barometer[BAROMETER_TEMPERATURE_INDEX] = buffer.getInt();
+		barometer[BAROMETER_PRESSURE_INDEX]    = buffer.getInt();
+		
 		accelerometerScalingFactor = buffer.getFloat();
-		gyroscope[0] = buffer.getShort();
-		gyroscope[1] = buffer.getShort();
-		gyroscope[2] = buffer.getShort();
+		accelerometer[X_INDEX] = buffer.getShort();
+		accelerometer[Y_INDEX] = buffer.getShort();
+		accelerometer[Z_INDEX] = buffer.getShort();
+		
 		gyroscopeScalingFactor = buffer.getFloat();
+		gyroscope[X_INDEX] = buffer.getShort();
+		gyroscope[Y_INDEX] = buffer.getShort();
+		gyroscope[Z_INDEX] = buffer.getShort();
 	}
 
 }

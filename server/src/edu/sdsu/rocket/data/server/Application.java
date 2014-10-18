@@ -8,6 +8,9 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.SocketAddress;
 import java.nio.ByteBuffer;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
@@ -23,15 +26,23 @@ import edu.sdsu.rocket.data.server.devices.MS5611;
 import edu.sdsu.rocket.data.server.devices.MS5611Wrapper;
 import edu.sdsu.rocket.data.server.io.DataLogger;
 import edu.sdsu.rocket.data.server.io.DatagramServer;
+import edu.sdsu.rocket.data.server.io.TextLogger;
 
 public class Application {
 	
+	public static final String FILE_SEPARATOR = System.getProperty("file.separator");
+	private static final long SECONDS_TO_NANOSECONDS = 1000000000L;
+	
 	private static final int SERVER_PORT = 4444;
 	private static final int BUFFER_SIZE = 64; // bytes
+	private static final long FREQUENCY_CHECK_INTERVAL = 10L * SECONDS_TO_NANOSECONDS; // nanoseconds
 	
-	private static final String FILE_SEPARATOR = System.getProperty("file.separator");
-	
-	private static final String ADS1115_LOG = "ads1115.log";
+	protected static final String EVENT_LOG   = "event.log";
+	protected static final String ADXL345_LOG = "adxl345.log";
+	protected static final String ITG3205_LOG = "itg3205.log";
+	protected static final String MS5611_LOG  = "ms5611.log";
+	protected static final String ADS1115_LOG = "ads1115.log";
+	private static final byte SCALING_FACTOR = 0x1;
 	
 	// http://pi.gadgetoid.com/pinout
 	ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
@@ -39,15 +50,19 @@ public class Application {
 	MS5611Wrapper ms5611 = new MS5611Wrapper(new MS5611(I2CBus.BUS_1));
 	ADS1115Wrapper ads1115 = new ADS1115Wrapper(new ADS1115(I2CBus.BUS_1));
 
-	private DataLogger logger;
+	protected TextLogger log;
+	protected DataLogger logger;
 	private DatagramServer server;
 	private int messageNumber;
 	
 	private final Reader input = new InputStreamReader(System.in);
-	private final Sensors sensors;
+	protected final Sensors sensors;
+	
+	private final Stopwatch stopwatch = new Stopwatch();
+	private long loops;
+	private float frequency; // Hz
 	
 	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
-	private final ByteBuffer dataBuffer = ByteBuffer.allocate(BUFFER_SIZE);
 	private final Vector3 tmpVec = new Vector3();
 	
 	public Application(Sensors sensors) {
@@ -58,19 +73,48 @@ public class Application {
 	}
 	
 	public void setup() throws IOException {
-		sensorSetup();
 		loggerSetup();
+		sensorSetup();
 		serverSetup();
-		Stopwatch.reset();
 	}
 	
 	public void loop() throws IOException {
 		sensorLoop();
 		serverLoop();
 		inputLoop();
+		
+		loops++;
+		if (stopwatch.nanoSecondsElapsed() >= FREQUENCY_CHECK_INTERVAL) {
+			float seconds = stopwatch.nanoSecondsElapsed() / SECONDS_TO_NANOSECONDS;
+			frequency = (float) loops / seconds;
+			loops = 0;
+			stopwatch.reset();
+		}
 	}
 	
-	private void sensorSetup() throws IOException {
+	protected void loggerSetup() throws IOException {
+		File userDir = new File(System.getProperty("user.dir", "~"));
+		if (!userDir.exists()) {
+			throw new IOException("Directory does not exist: " + userDir);
+		}
+		
+		DateFormat dirDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+		String timestamp = dirDateFormat.format(new Date());
+		
+		File logDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
+		if (!logDir.exists()) {
+			logDir.mkdirs();
+		}
+		
+		long now = System.currentTimeMillis();
+		DateFormat logDateFormat = DateFormat.getDateInstance(DateFormat.LONG);
+		log = new TextLogger(logDir + FILE_SEPARATOR + EVENT_LOG);
+		log.message("Logging started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).");
+		
+		logger = new DataLogger(logDir);
+	}
+	
+	protected void sensorSetup() throws IOException {
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
 			throw new IOException("Failed to verify ADXL345 device ID");
@@ -85,12 +129,14 @@ public class Application {
 		adxl345.writeFullResolution(true);
 		adxl345.writeRate(ADXL345.ADXL345_RATE_400);
 		sensors.setAccelerometerScalingFactor(adxl345.getScalingFactor());
+		logger.log(ADXL345_LOG, SCALING_FACTOR, sensors.getAccelerometerScalingFactor());
 		
 		// F_sample = F_internal / (divider + 1)
 		// divider = F_internal / F_sample - 1
 		itg3205.writeSampleRateDivider(2); // 2667 Hz
 		itg3205.writeDLPFBandwidth(ITG3205.ITG3205_DLPF_BW_256);
-		sensors.setGryroscopeScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
+		sensors.setGyroscopeScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
+		logger.log(ITG3205_LOG, SCALING_FACTOR, sensors.getGyroscopeScalingFactor());
 		
 		ms5611.getDevice().setup();
 		
@@ -104,16 +150,7 @@ public class Application {
 		ads1115.setTimeout(timeout);
 	}
 	
-	private void loggerSetup() throws IOException {
-		File userDir = new File(System.getProperty("user.dir", "~"));
-		if (!userDir.exists()) {
-			throw new IOException("Directory does not exist: " + userDir);
-		}
-		File logDir = new File(userDir + FILE_SEPARATOR + "logs");
-		logger = new DataLogger(logDir);
-	}
-	
-	private void serverSetup() throws IOException {
+	protected void serverSetup() throws IOException {
 		server = new DatagramServer(SERVER_PORT);
 		server.start();
 	}
@@ -127,33 +164,30 @@ public class Application {
 	public void sendSensorData(SocketAddress address) throws IOException {
 		DatagramSocket socket = server.getSocket();
 		if (socket != null) {
-			dataBuffer.clear();
-			sensors.toByteBuffer(dataBuffer);
-			dataBuffer.flip();
-			
 			buffer.clear();
 			buffer.putInt(++messageNumber);
 			buffer.put(Message.SENSOR);
-			buffer.put(dataBuffer);
-			buffer.flip();
+			sensors.toByteBuffer(buffer);
 			
-			byte[] temp = new byte[buffer.limit()];
-			System.arraycopy(buffer.array(), 0, temp, 0, temp.length);
+			byte[] buf = buffer.array();
+			int length = buffer.position();
+			DatagramPacket packet = new DatagramPacket(buf, length, address);
 			
-			DatagramPacket packet = new DatagramPacket(buffer.array(), buffer.limit(), address);
 			socket.send(packet);
 		}
 	}
 
-	private void sensorLoop() throws IOException {
+	protected void sensorLoop() throws IOException {
 		adxl345.readRawAcceleration(sensors.accelerometer);
+		logger.log(ADXL345_LOG, sensors.accelerometer);
 		
 		itg3205.readRawRotations(sensors.gyroscope);
+		logger.log(ITG3205_LOG, sensors.gyroscope);
 		
 		int status;
 		status = ms5611.read(sensors.barometer);
 		if (status == 0) {
-			// TODO log barometer values
+			logger.log(MS5611_LOG, sensors.barometer);
 		} else if (status > 0) { // fault occurred
 //			Console.error("MS5611 D" + status + " fault.");
 			// TODO log barometer fault
@@ -161,14 +195,14 @@ public class Application {
 		
 		status = ads1115.read(sensors.analog);
 		if (status == 0) {
-//			logger.log(ADS1115_LOG, sensors.analog);
+			logger.log(ADS1115_LOG, sensors.analog);
 		} else if (status > 0) { // error
 //			Console.error("ADS1115 error code " + status + ".");
 			// TODO log adc error
 		}
 	}
 	
-	private void serverLoop() {
+	protected void serverLoop() {
 		Message message = server.read();
 		if (message != null) {
 			try {
@@ -183,7 +217,7 @@ public class Application {
 		}
 	}
 
-	private void inputLoop() throws IOException {
+	protected void inputLoop() throws IOException {
 		if (input.ready()) {
 			int c = input.read();
 			switch (c) {
@@ -191,6 +225,7 @@ public class Application {
 				Console.log();
 				Console.log("?: help");
 				Console.log("t: cpu temperature");
+				Console.log("f: loop frequency");
 				Console.log("q: quit");
 				Console.log("a: accelerometer");
 				Console.log("b: barometer");
@@ -208,6 +243,10 @@ public class Application {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
+				break;
+			case 'f':
+			case 'F':
+				Console.log("Loop Frequency: " + frequency + " Hz");
 				break;
 			case 'a':
 			case 'A':

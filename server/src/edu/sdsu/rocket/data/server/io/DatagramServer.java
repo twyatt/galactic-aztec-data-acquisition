@@ -10,6 +10,7 @@ import edu.sdsu.rocket.data.io.Message;
 import edu.sdsu.rocket.data.io.MessageHandler;
 import edu.sdsu.rocket.data.io.MessageHandler.MessageListener;
 import edu.sdsu.rocket.data.io.PacketRunnable;
+import edu.sdsu.rocket.data.server.Console;
 
 public class DatagramServer implements MessageListener {
 	
@@ -30,7 +31,7 @@ public class DatagramServer implements MessageListener {
 	
 	public void start() throws SocketException {
 		socket = new DatagramSocket(port);
-		System.out.println("Listing on port " + port + ".");
+		Console.log("Listing on port " + port + ".");
 		
 		thread = new Thread(new PacketRunnable(socket, new MessageHandler(this)));
 		thread.setName("DatagramServer");
