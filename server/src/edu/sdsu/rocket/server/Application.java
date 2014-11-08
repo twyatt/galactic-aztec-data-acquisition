@@ -1,6 +1,7 @@
 package edu.sdsu.rocket.server;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -44,11 +45,10 @@ public class Application {
 	protected static final String ADS1115_LOG = "ads1115.log";
 	private static final byte SCALING_FACTOR = 0x1;
 	
-	// http://pi.gadgetoid.com/pinout
-	ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
-	ITG3205 itg3205 = new ITG3205(I2CBus.BUS_1);
-	MS5611Wrapper ms5611 = new MS5611Wrapper(new MS5611(I2CBus.BUS_1));
-	ADS1115Wrapper ads1115 = new ADS1115Wrapper(new ADS1115(I2CBus.BUS_1));
+	ADXL345 adxl345;
+	ITG3205 itg3205;
+	MS5611Wrapper ms5611;
+	ADS1115Wrapper ads1115;
 
 	protected TextLogger log;
 	protected DataLogger logger;
@@ -115,38 +115,53 @@ public class Application {
 	}
 	
 	protected void sensorSetup() throws IOException {
+		setupADXL345();
+		setupITG3205();
+		setupMS5611();
+		setupADS1115();
+	}
+	
+	private void setupADXL345() throws IOException {
+		adxl345 = new ADXL345(I2CBus.BUS_1);
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
 			throw new IOException("Failed to verify ADXL345 device ID");
 		}
-		
-		itg3205.setup();
-		if (!itg3205.verifyDeviceID()) {
-			throw new IOException("Failed to verify ITG3205 device ID");
-		}
-		
 		adxl345.writeRange(ADXL345.ADXL345_RANGE_16G);
 		adxl345.writeFullResolution(true);
 		adxl345.writeRate(ADXL345.ADXL345_RATE_400);
 		sensors.setAccelerometerScalingFactor(adxl345.getScalingFactor());
 		logger.log(ADXL345_LOG, SCALING_FACTOR, sensors.getAccelerometerScalingFactor());
-		
+	}
+
+	private void setupITG3205() throws IOException, FileNotFoundException {
+		itg3205 = new ITG3205(I2CBus.BUS_1);
+		itg3205.setup();
+		if (!itg3205.verifyDeviceID()) {
+			throw new IOException("Failed to verify ITG3205 device ID");
+		}
 		// F_sample = F_internal / (divider + 1)
 		// divider = F_internal / F_sample - 1
 		itg3205.writeSampleRateDivider(2); // 2667 Hz
 		itg3205.writeDLPFBandwidth(ITG3205.ITG3205_DLPF_BW_256);
 		sensors.setGyroscopeScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
 		logger.log(ITG3205_LOG, SCALING_FACTOR, sensors.getGyroscopeScalingFactor());
-		
+	}
+	
+	private void setupMS5611() throws IOException {
+		ms5611 = new MS5611Wrapper(new MS5611(I2CBus.BUS_1));
 		ms5611.getDevice().setup();
-		
+	}
+
+	private void setupADS1115() throws IOException {
+		ads1115 = new ADS1115Wrapper(new ADS1115(I2CBus.BUS_1));
 		ads1115.getDevice().setup();
 		ads1115.getDevice().writeGain(ADS1115.ADS1115_PGA_4P096); // +/- 4.096V
 //		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_64); // 64 samples/second => ~15 Hz for 4 single-ended
 //		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_475); // 475 samples/second => ~83 Hz for 4 single-ended
 		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_860); // 860 samples/second => ~119 Hz for 4 single-ended
 		int sps = ADS1115.getSamplesPerSecond(ads1115.getDevice().readRate());
-		long timeout = 1000000000L / sps * 5L; // 5 X expected sample duration
+		long timeout = (1L * SECONDS_TO_NANOSECONDS) / sps * 5L; // 5 X expected sample duration
 //		Console.log("ADS1115 timeout: " + timeout);
 		ads1115.setTimeout(timeout);
 	}
@@ -179,27 +194,36 @@ public class Application {
 	}
 
 	protected void sensorLoop() throws IOException {
-		adxl345.readRawAcceleration(sensors.accelerometer);
-		logger.log(ADXL345_LOG, sensors.accelerometer);
-		
-		itg3205.readRawRotations(sensors.gyroscope);
-		logger.log(ITG3205_LOG, sensors.gyroscope);
-		
-		int status;
-		status = ms5611.read(sensors.barometer);
-		if (status == 0) {
-			logger.log(MS5611_LOG, sensors.barometer);
-		} else if (status > 0) { // fault occurred
-//			Console.error("MS5611 D" + status + " fault.");
-			// TODO log barometer fault
+		if (adxl345 != null) {
+			adxl345.readRawAcceleration(sensors.accelerometer);
+			logger.log(ADXL345_LOG, sensors.accelerometer);
 		}
 		
-		status = ads1115.read(sensors.analog);
-		if (status == 0) {
-			logger.log(ADS1115_LOG, sensors.analog);
-		} else if (status > 0) { // error
-//			Console.error("ADS1115 error code " + status + ".");
-			// TODO log adc error
+		if (itg3205 != null) {
+			itg3205.readRawRotations(sensors.gyroscope);
+			logger.log(ITG3205_LOG, sensors.gyroscope);
+		}
+		
+		int status;
+		
+		if (ms5611 != null) {
+			status = ms5611.read(sensors.barometer);
+			if (status == 0) {
+				logger.log(MS5611_LOG, sensors.barometer);
+			} else if (status > 0) { // fault occurred
+//				Console.error("MS5611 D" + status + " fault.");
+				// TODO log barometer fault
+			}
+		}
+		
+		if (ads1115 != null) {
+			status = ads1115.read(sensors.analog);
+			if (status == 0) {
+				logger.log(ADS1115_LOG, sensors.analog);
+			} else if (status > 0) { // error
+//				Console.error("ADS1115 error code " + status + ".");
+				// TODO log adc error
+			}
 		}
 	}
 	
