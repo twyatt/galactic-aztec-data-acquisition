@@ -143,10 +143,11 @@ public class Application {
 		ads1115.getDevice().setup();
 		ads1115.getDevice().writeGain(ADS1115.ADS1115_PGA_4P096); // +/- 4.096V
 //		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_64); // 64 samples/second => ~15 Hz for 4 single-ended
-		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_475); // 475 samples/second => ~83 Hz for 4 single-ended
-//		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_860); // 860 samples/second => ~119 Hz for 4 single-ended
+//		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_475); // 475 samples/second => ~83 Hz for 4 single-ended
+		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_860); // 860 samples/second => ~119 Hz for 4 single-ended
 		int sps = ADS1115.getSamplesPerSecond(ads1115.getDevice().readRate());
 		long timeout = 1000000000L / sps * 5L; // 5 X expected sample duration
+//		Console.log("ADS1115 timeout: " + timeout);
 		ads1115.setTimeout(timeout);
 	}
 	

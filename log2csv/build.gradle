@@ -11,8 +11,7 @@ sourceSets {
 }
 
 dependencies {
-    //compile fileTree(dir: 'libs', include: '*.jar')
-    //testCompile "junit:junit:4.11"
+    compile "au.com.bytecode:opencsv:2.4"
 }
 
 sourceCompatibility = 1.7

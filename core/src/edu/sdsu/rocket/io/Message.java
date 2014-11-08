@@ -8,7 +8,7 @@ public class Message {
 	public static final byte SENSOR = 0x1;
 	
 	public SocketAddress address;
-	public int number;
+	public int number; // only used w/ UDP
 	public int id;
 	public byte[] data;
 	

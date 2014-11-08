@@ -46,15 +46,15 @@ public class ADS1115Wrapper {
 	}
 	
 	public int read(float[] raw) throws IOException {
-		switch (state) {
-		case POWERED_DOWN:
+		if (State.POWERED_DOWN.equals(state)) {
 			start = System.nanoTime();
 			ads1115.writeMultiplexer(mux[i]);
 			ads1115.writeOpStatus(ADS1115.ADS1115_OS_BEGIN);
 			state = State.WAITING_FOR_ASSERT;
 			if (DEBUG) System.out.print("_");
-			break;
-		case WAITING_FOR_ASSERT:
+		}
+		
+		if (State.WAITING_FOR_ASSERT.equals(state)) {
 			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_ACTIVE) {
 				state = State.CONVERSION_IN_PROGRESS;
 				if (DEBUG) System.out.print("^");
@@ -71,8 +71,9 @@ public class ADS1115Wrapper {
 					if (DEBUG) System.out.print("?");
 				}
 			}
-			break;
-		case CONVERSION_IN_PROGRESS:
+		}
+		
+		if (State.CONVERSION_IN_PROGRESS.equals(state)) {
 			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_INACTIVE) {
 //				System.out.println("Conversion complete.");
 				state = State.CONVERSION_COMPLETE;
@@ -81,18 +82,20 @@ public class ADS1115Wrapper {
 //				System.out.println("Waiting for conversion.");
 				if (DEBUG) System.out.print(".");
 			}
-			break;
-		case CONVERSION_COMPLETE:
+		}
+		
+		if (State.CONVERSION_COMPLETE.equals(state)) {
 			if (DEBUG) System.out.print(i);
+			state = State.POWERED_DOWN;
 			a[i++] = ads1115.readMillivolts();
 			if (i == mux.length) {
 				if (DEBUG) System.out.println();
 //				System.out.println("A0=" + a[0] + " mV,\tA1=" + a[1] + " mV,\tA2=" + a[2] + " mV,\tA3=" + a[3] + " mV");
 				System.arraycopy(a /* src */, 0 /* srcPos */, raw /* dest */, 0 /* destPos */, mux.length /* length */);
 				i = 0;
+				return FRESH;
 			}
-			state = State.POWERED_DOWN;
-			return FRESH;
+			return STALE;
 		}
 		
 		if (System.nanoTime() - start > timeout) {

@@ -99,8 +99,8 @@ public class DataLogger {
 	 */
 	private void log(DataOutputStream out, int[] values) {
 		try {
-			out.writeLong(stopwatch.nanoSecondsElapsed());
 			out.write(SENSOR_VALUES);
+			out.writeLong(stopwatch.nanoSecondsElapsed());
 			for (int value : values) {
 				out.writeInt(value);
 			}
@@ -120,8 +120,8 @@ public class DataLogger {
 	 */
 	private void log(DataOutputStream out, short[] values) {
 		try {
-			out.writeLong(stopwatch.nanoSecondsElapsed());
 			out.write(SENSOR_VALUES);
+			out.writeLong(stopwatch.nanoSecondsElapsed());
 			for (short value : values) {
 				out.writeShort(value);
 			}
@@ -141,8 +141,8 @@ public class DataLogger {
 	 */
 	private void log(DataOutputStream out, float[] values) {
 		try {
-			out.writeLong(stopwatch.nanoSecondsElapsed());
 			out.write(SENSOR_VALUES);
+			out.writeLong(stopwatch.nanoSecondsElapsed());
 			for (float value : values) {
 				out.writeFloat(value);
 			}
