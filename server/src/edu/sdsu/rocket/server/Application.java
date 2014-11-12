@@ -79,7 +79,11 @@ public class Application {
 	}
 	
 	public void loop() throws IOException {
-		sensorLoop();
+		try {
+			sensorLoop();
+		} catch (IOException e) {
+			Console.error(e.getMessage());
+		}
 		serverLoop();
 		inputLoop();
 		

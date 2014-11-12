@@ -97,13 +97,19 @@ public class Sensors {
 	}
 	
 	public float getLoxPressure() {
-		float volts = analog[LOX_INDEX] / 1000f;
-		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) LOX_MAX_PRESSURE);
+//		float volts = analog[LOX_INDEX] / 1000f;
+//		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) LOX_MAX_PRESSURE);
+		
+		// calibrated transducer #2
+		return 0.20688f * analog[LOX_INDEX] - 143.273f;
 	}
 	
 	public float getKerosenePressure() {
-		float volts = analog[KEROSENE_INDEX] / 1000f;
-		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) KEROSENE_MAX_PRESSURE);
+//		float volts = analog[KEROSENE_INDEX] / 1000f;
+//		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) KEROSENE_MAX_PRESSURE);
+		
+		// calibrated transducer #3
+		return 0.212968f * analog[KEROSENE_INDEX] - 147.109f;
 	}
 	
 	public float getHeliumPressure() {

@@ -38,7 +38,7 @@ import eu.hansolo.enzo.gauge.GaugeBuilder;
 @SuppressWarnings("deprecation")
 public class MainController {
 	
-	private static final boolean DEBUG_SENSORS = true;
+	private static final boolean DEBUG_SENSORS = false;
 	private static final int PORT = 4444;
 	
 	private static final String CONNECT    = "Connect";
