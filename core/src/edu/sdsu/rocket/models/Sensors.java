@@ -92,15 +92,20 @@ public class Sensors {
 	}
 	
 	public float getMotorPressure() {
-		float volts = analog[MOTOR_INDEX] / 1000f;
-		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) MOTOR_MAX_PRESSURE);
+//		float volts = analog[MOTOR_INDEX] / 1000f;
+//		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) MOTOR_MAX_PRESSURE);
+		
+		// P51-500-A-A-I36-5V-000-000
+		// calibrated transducer #1 on Nov 13, 2014
+		return 0.210439f * analog[MOTOR_INDEX] - 150.502f;
 	}
 	
 	public float getLoxPressure() {
 //		float volts = analog[LOX_INDEX] / 1000f;
 //		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) LOX_MAX_PRESSURE);
 		
-		// calibrated transducer #2
+		// P51-500-A-A-I36-5V-000-000
+		// calibrated transducer #2 on Nov 11, 2014
 		return 0.20688f * analog[LOX_INDEX] - 143.273f;
 	}
 	
@@ -108,13 +113,18 @@ public class Sensors {
 //		float volts = analog[KEROSENE_INDEX] / 1000f;
 //		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) KEROSENE_MAX_PRESSURE);
 		
-		// calibrated transducer #3
+		// P51-500-A-A-I36-5V-000-000
+		// calibrated transducer #3 on Nov 11, 2014
 		return 0.212968f * analog[KEROSENE_INDEX] - 147.109f;
 	}
 	
 	public float getHeliumPressure() {
-		float volts = analog[HELIUM_INDEX] / 1000f;
-		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) HELIUM_MAX_PRESSURE);
+//		float volts = analog[HELIUM_INDEX] / 1000f;
+//		return MathHelper.translate(volts, 0f, 3.3f, 0f, (float) HELIUM_MAX_PRESSURE);
+		
+		// MSP-300-2K5-P-4-N-1
+		// calibrated transducer #4 on Nov 13, 2014
+		return 1.060797f * analog[HELIUM_INDEX] - 653.691f;
 	}
 	
 	public void toByteBuffer(ByteBuffer buffer) {
