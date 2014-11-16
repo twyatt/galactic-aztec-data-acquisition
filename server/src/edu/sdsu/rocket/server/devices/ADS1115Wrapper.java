@@ -45,6 +45,49 @@ public class ADS1115Wrapper {
 		this.timeout = timeout;
 	}
 	
+	/**
+	 * Performs an analog read of the specified channel (blocks until read is
+	 * complete).
+	 * 
+	 * @param channel 0-3
+	 * @return Reading (mV)
+	 * @throws IOException
+	 */
+	public float read(int channel) throws IOException {
+		start = System.nanoTime();
+		ads1115.writeMultiplexer(mux[channel]);
+		ads1115.writeOpStatus(ADS1115.ADS1115_OS_BEGIN);
+		
+		boolean ready = false, waiting = true;
+		while (!ready) {
+			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_ACTIVE) {
+				ready = true;
+			} else if (System.nanoTime() - start > timeout) {
+				/*
+				 * Timed out waiting for assert, so we'll assume we
+				 * missed the assert and the conversion is already
+				 * complete.
+				 */
+				ready = true;
+				waiting = false;
+//				System.out.print("?");
+			}
+		}
+		
+		// wait for conversion
+		while (waiting) {
+			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_INACTIVE) {
+				waiting = false;
+			} else if (System.nanoTime() - start > timeout) {
+//				System.out.print("!");
+				waiting = false;
+			}
+		}
+		
+		return ads1115.readMillivolts();
+	}
+	
+	// non-blocking
 	public int read(float[] raw) throws IOException {
 		if (State.POWERED_DOWN.equals(state)) {
 			start = System.nanoTime();
