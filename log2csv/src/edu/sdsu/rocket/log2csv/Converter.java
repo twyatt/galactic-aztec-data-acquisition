@@ -18,19 +18,21 @@ public class Converter {
 	}
 	
 	public void convert() {
-		System.out.println("Converting ADS1115 ...");
+		System.out.print("Converting ADS1115 ... ");
 		try {
 			convertADS1115();
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
 		}
+		System.out.println("Done");
 		
-		System.out.println("Converting ADX345 ...");
+		System.out.print("Converting ADXL345 ... ");
 		try {
 			convertADXL345();
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
 		}
+		System.out.println("Done");
 	}
 
 	public void convertADS1115() throws IOException {

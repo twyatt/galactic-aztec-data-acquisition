@@ -4,8 +4,6 @@ import java.nio.ByteBuffer;
 
 import com.badlogic.gdx.math.Vector3;
 
-import edu.sdsu.rocket.helpers.MathHelper;
-
 public class Sensors {
 	
 	public static final int BAROMETER_TEMPERATURE_INDEX = 0;
