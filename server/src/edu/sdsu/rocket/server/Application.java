@@ -45,6 +45,10 @@ public class Application {
 	protected static final String ADS1115_LOG = "ads1115.log";
 	private static final byte SCALING_FACTOR = 0x1;
 	
+	private static final float SENSOR_FREQUENCY = 2f; // Hz
+	private static final long SENSOR_NANOSECONDS_PER_SAMPLE = (long) (1f / SENSOR_FREQUENCY * SECONDS_TO_NANOSECONDS);
+	private long start = System.nanoTime() - SENSOR_NANOSECONDS_PER_SAMPLE;
+	
 	ADXL345 adxl345;
 	ITG3205 itg3205;
 	MS5611Wrapper ms5611;
@@ -198,36 +202,40 @@ public class Application {
 	}
 
 	protected void sensorLoop() throws IOException {
-		if (adxl345 != null) {
-			adxl345.readRawAcceleration(sensors.accelerometer);
-			logger.log(ADXL345_LOG, sensors.accelerometer);
-		}
-		
-		if (itg3205 != null) {
-			itg3205.readRawRotations(sensors.gyroscope);
-			logger.log(ITG3205_LOG, sensors.gyroscope);
-		}
-		
-		int status;
-		
-		if (ms5611 != null) {
-			status = ms5611.read(sensors.barometer);
-			if (status == 0) {
-				logger.log(MS5611_LOG, sensors.barometer);
-			} else if (status > 0) { // fault occurred
-//				Console.error("MS5611 D" + status + " fault.");
-				// TODO log barometer fault
+		if (System.nanoTime() - start >= SENSOR_NANOSECONDS_PER_SAMPLE) {
+			start = System.nanoTime();
+			
+			if (adxl345 != null) {
+				adxl345.readRawAcceleration(sensors.accelerometer);
+				logger.log(ADXL345_LOG, sensors.accelerometer);
+			}
+			
+			if (itg3205 != null) {
+				itg3205.readRawRotations(sensors.gyroscope);
+				logger.log(ITG3205_LOG, sensors.gyroscope);
+			}
+			
+			if (ms5611 != null) {
+				int status;
+				status = ms5611.read(sensors.barometer);
+				if (status == 0) {
+					logger.log(MS5611_LOG, sensors.barometer);
+				} else if (status > 0) { // fault occurred
+//					Console.error("MS5611 D" + status + " fault.");
+					// TODO log barometer fault
+				}
+			}
+			
+			if (ads1115 != null) {
+				sensors.analog[1] = ads1115.read(1);
+				sensors.analog[2] = ads1115.read(2);
+				sensors.analog[3] = ads1115.read(3);
 			}
 		}
 		
 		if (ads1115 != null) {
-			status = ads1115.read(sensors.analog);
-			if (status == 0) {
-				logger.log(ADS1115_LOG, sensors.analog);
-			} else if (status > 0) { // error
-//				Console.error("ADS1115 error code " + status + ".");
-				// TODO log adc error
-			}
+			sensors.analog[0] = ads1115.read(0);
+			logger.log(ADS1115_LOG, sensors.analog);
 		}
 	}
 	
