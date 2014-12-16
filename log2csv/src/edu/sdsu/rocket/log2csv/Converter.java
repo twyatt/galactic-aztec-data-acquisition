@@ -8,6 +8,7 @@ import java.io.IOException;
 import au.com.bytecode.opencsv.CSVWriter;
 import edu.sdsu.rocket.log2csv.ADS1115InputStream.ADS1115Reading;
 import edu.sdsu.rocket.log2csv.ADXL345InputStream.ADXL345Reading;
+import edu.sdsu.rocket.log2csv.MS5611InputStream.MS5611Reading;
 
 public class Converter {
 
@@ -21,18 +22,26 @@ public class Converter {
 		System.out.print("Converting ADS1115 ... ");
 		try {
 			convertADS1115();
+			System.out.println("Done");
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
 		}
-		System.out.println("Done");
 		
 		System.out.print("Converting ADXL345 ... ");
 		try {
 			convertADXL345();
+			System.out.println("Done");
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
 		}
-		System.out.println("Done");
+		
+		System.out.print("Converting MS5611 ... ");
+		try {
+			convertMS5611();
+			System.out.println("Done");
+		} catch (IOException e) {
+			System.err.println(e.getMessage());
+		}
 	}
 
 	public void convertADS1115() throws IOException {
@@ -77,6 +86,31 @@ public class Converter {
 				entries[2] = String.valueOf(reading.values[0]); // x
 				entries[3] = String.valueOf(reading.values[1]); // y
 				entries[4] = String.valueOf(reading.values[2]); // z
+				writer.writeNext(entries);
+			}
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				System.err.println("Failed to close " + name);
+			}
+			writer.close();
+		}
+	}
+	
+	public void convertMS5611() throws IOException {
+		String name = "ms5611";
+		MS5611InputStream in = new MS5611InputStream(new FileInputStream(location + File.separator + name + ".log"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		
+		writer.writeNext("Timestamp (ns)", "Temperature (C)", "Pressure (mbar)");
+		try {
+			MS5611Reading reading;
+			while ((reading = in.readReading()) != null) {
+				String[] entries = new String[3];
+				entries[0] = String.valueOf(reading.timestamp);
+				entries[1] = String.valueOf((float) reading.values[0] / 100f); // C * 100
+				entries[2] = String.valueOf((float) reading.values[1] / 100f); // mbar * 100
 				writer.writeNext(entries);
 			}
 		} finally {
