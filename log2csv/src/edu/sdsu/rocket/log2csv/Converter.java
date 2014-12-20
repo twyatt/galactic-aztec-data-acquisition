@@ -8,6 +8,7 @@ import java.io.IOException;
 import au.com.bytecode.opencsv.CSVWriter;
 import edu.sdsu.rocket.log2csv.ADS1115InputStream.ADS1115Reading;
 import edu.sdsu.rocket.log2csv.ADXL345InputStream.ADXL345Reading;
+import edu.sdsu.rocket.log2csv.ITG3205InputStream.ITG3205Reading;
 import edu.sdsu.rocket.log2csv.MS5611InputStream.MS5611Reading;
 
 public class Converter {
@@ -30,6 +31,14 @@ public class Converter {
 		System.out.print("Converting ADXL345 ... ");
 		try {
 			convertADXL345();
+			System.out.println("Done");
+		} catch (IOException e) {
+			System.err.println(e.getMessage());
+		}
+		
+		System.out.print("Converting ITG3205 ... ");
+		try {
+			convertITG3205();
 			System.out.println("Done");
 		} catch (IOException e) {
 			System.err.println(e.getMessage());
@@ -76,9 +85,36 @@ public class Converter {
 		ADXL345InputStream in = new ADXL345InputStream(new FileInputStream(location + File.separator + name + ".log"));
 		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
 		
-		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (G)", "Y (G)", "Z (G)");
+		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
 		try {
 			ADXL345Reading reading;
+			while ((reading = in.readReading()) != null) {
+				String[] entries = new String[5];
+				entries[0] = String.valueOf(reading.timestamp);
+				entries[1] = String.valueOf(reading.scalingFactor);
+				entries[2] = String.valueOf(reading.values[0]); // x
+				entries[3] = String.valueOf(reading.values[1]); // y
+				entries[4] = String.valueOf(reading.values[2]); // z
+				writer.writeNext(entries);
+			}
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				System.err.println("Failed to close " + name);
+			}
+			writer.close();
+		}
+	}
+	
+	public void convertITG3205() throws IOException {
+		String name = "itg3205";
+		ITG3205InputStream in = new ITG3205InputStream(new FileInputStream(location + File.separator + name + ".log"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		
+		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
+		try {
+			ITG3205Reading reading;
 			while ((reading = in.readReading()) != null) {
 				String[] entries = new String[5];
 				entries[0] = String.valueOf(reading.timestamp);
