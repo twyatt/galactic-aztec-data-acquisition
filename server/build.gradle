@@ -1,38 +1,29 @@
 apply plugin: 'java'
-apply plugin: 'eclipse'
-apply plugin: 'application'
-
-sourceSets {
-    main {
-        java {
-            srcDirs = ["src"]
-        }
-    }
-}
-
-dependencies {
-    compile('com.pi4j:pi4j-core:0.0.5') {
-        exclude module: 'pi4j-native'
-    }
-    compile('com.pi4j:pi4j-device:0.0.5') {
-        exclude module: 'pi4j-native'
-    }
-    compile('com.pi4j:pi4j-gpio-extension:0.0.5') {
-        exclude module: 'pi4j-native'
-    }
-    
-    compile "org.apache.commons:commons-collections4:4.0"
-    
-    //compile fileTree(dir: 'libs', include: '*.jar')
-
-    //testCompile "junit:junit:4.11"
-}
 
 sourceCompatibility = 1.7
 targetCompatibility = 1.7
+sourceSets.main.java.srcDirs = [ "src/" ]
 
-// http://www.gradle.org/docs/current/userguide/application_plugin.html
-mainClassName = "edu.sdsu.rocket.server.Launcher"
+project.ext.mainClassName = "edu.sdsu.rocket.server.Launcher"
+
+task run(dependsOn: classes, type: JavaExec) {
+    main = project.mainClassName
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+    ignoreExitValue = true
+}
+
+task dist(type: Jar) {
+    from files(sourceSets.main.output.classesDir)
+    from files(sourceSets.main.output.resourcesDir)
+    from {configurations.compile.collect {zipTree(it)}}
+ 
+    manifest {
+        attributes 'Main-Class': project.mainClassName
+    }
+}
+
+dist.dependsOn classes
 
 eclipse {
     project {

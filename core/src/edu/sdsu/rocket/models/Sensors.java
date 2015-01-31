@@ -30,6 +30,7 @@ public class Sensors {
 	public final short[] gyroscope = new short[3]; // deg/sec * scale
 	public final int[] barometer = new int[2]; // C * 100, mbar * 100
 	public final float[] analog = new float[4]; // mV
+	public final GPS gps = new GPS();
 	
 	public void setAccelerometerScalingFactor(float scale) {
 		accelerometerScalingFactor = scale;
@@ -143,6 +144,10 @@ public class Sensors {
 		buffer.putShort(gyroscope[X_INDEX]);
 		buffer.putShort(gyroscope[Y_INDEX]);
 		buffer.putShort(gyroscope[Z_INDEX]);
+		
+		buffer.putDouble(gps.getLatitude());
+		buffer.putDouble(gps.getLongitude());
+		buffer.putDouble(gps.getAltitude());
 	}
 	
 	public void fromByteBuffer(ByteBuffer buffer) {
@@ -163,6 +168,8 @@ public class Sensors {
 		gyroscope[X_INDEX] = buffer.getShort();
 		gyroscope[Y_INDEX] = buffer.getShort();
 		gyroscope[Z_INDEX] = buffer.getShort();
+		
+		gps.set(buffer.getDouble(), buffer.getDouble(), buffer.getDouble());
 	}
 
 }

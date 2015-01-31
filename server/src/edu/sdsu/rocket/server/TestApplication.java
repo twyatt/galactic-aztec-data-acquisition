@@ -15,13 +15,13 @@ public class TestApplication extends Application {
 	}
 	
 	@Override
-	protected void sensorSetup() throws IOException {
+	protected void setupSensors() throws IOException {
 		sensors.setAccelerometerScalingFactor(0.001f);
 		sensors.setGyroscopeScalingFactor(1f);
 	}
 	
 	@Override
-	protected void sensorLoop() throws IOException {
+	protected void loopSensors() throws IOException {
 		x += 0.01f;
 		float c = MathUtils.cos(x); // -1 to 1
 		float s = MathUtils.sin(x); // -1 to 1

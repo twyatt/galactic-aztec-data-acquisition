@@ -10,6 +10,7 @@ public class Pi {
 	// cat /sys/class/thermal/thermal_zone0/temp
 	private static final String CPU_TEMPERATURE_DEVICE = "/sys/class/thermal/thermal_zone0/temp";
 	
+	// degrees celsius
 	public static float getCpuTemperature() throws IOException {
 		BufferedReader in;
 		try {

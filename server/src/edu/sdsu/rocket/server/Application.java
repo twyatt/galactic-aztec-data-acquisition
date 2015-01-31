@@ -1,7 +1,9 @@
 package edu.sdsu.rocket.server;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -22,6 +24,7 @@ import edu.sdsu.rocket.models.Sensors;
 import edu.sdsu.rocket.server.devices.ADS1115;
 import edu.sdsu.rocket.server.devices.ADS1115Wrapper;
 import edu.sdsu.rocket.server.devices.ADXL345;
+import edu.sdsu.rocket.server.devices.AdafruitGPS;
 import edu.sdsu.rocket.server.devices.ITG3205;
 import edu.sdsu.rocket.server.devices.MS5611;
 import edu.sdsu.rocket.server.devices.MS5611Wrapper;
@@ -34,6 +37,9 @@ public class Application {
 	public static final String FILE_SEPARATOR = System.getProperty("file.separator");
 	private static final long SECONDS_TO_NANOSECONDS = 1000000000L;
 	
+	private static final String GPS_DEVICE = "/dev/ttyUSB0";
+//	private static final String GPS_DEVICE = "/dev/ttyAMA0"; // GPIO
+	
 	private static final int SERVER_PORT = 4444;
 	private static final int BUFFER_SIZE = 64; // bytes
 	private static final long FREQUENCY_CHECK_INTERVAL = 10L * SECONDS_TO_NANOSECONDS; // nanoseconds
@@ -43,7 +49,8 @@ public class Application {
 	protected static final String ITG3205_LOG = "itg3205.log";
 	protected static final String MS5611_LOG  = "ms5611.log";
 	protected static final String ADS1115_LOG = "ads1115.log";
-	private static final byte SCALING_FACTOR = 0x1;
+	protected static final String GPS_LOG     = "gps.txt";
+	private static final byte SCALING_FACTOR = 0x1; // log identifier
 	
 	private static final float SENSOR_FREQUENCY = 2f; // Hz
 	private static final long SENSOR_NANOSECONDS_PER_SAMPLE = (long) (1f / SENSOR_FREQUENCY * SECONDS_TO_NANOSECONDS);
@@ -53,7 +60,10 @@ public class Application {
 	ITG3205 itg3205;
 	MS5611Wrapper ms5611;
 	ADS1115Wrapper ads1115;
+	AdafruitGPS gps;
 
+	private File logDir;
+	
 	protected TextLogger log;
 	protected DataLogger logger;
 	private DatagramServer server;
@@ -77,19 +87,19 @@ public class Application {
 	}
 	
 	public void setup() throws IOException {
-		loggerSetup();
-		sensorSetup();
-		serverSetup();
+		setupLogger();
+		setupSensors();
+		setupServer();
 	}
 	
 	public void loop() throws IOException {
 		try {
-			sensorLoop();
+			loopSensors();
 		} catch (IOException e) {
 			Console.error(e.getMessage());
 		}
-		serverLoop();
-		inputLoop();
+		loopServer();
+		loopInput();
 		
 		loops++;
 		if (stopwatch.nanoSecondsElapsed() >= FREQUENCY_CHECK_INTERVAL) {
@@ -100,7 +110,7 @@ public class Application {
 		}
 	}
 	
-	protected void loggerSetup() throws IOException {
+	protected void setupLogger() throws IOException {
 		File userDir = new File(System.getProperty("user.dir", "~"));
 		if (!userDir.exists()) {
 			throw new IOException("Directory does not exist: " + userDir);
@@ -109,7 +119,7 @@ public class Application {
 		DateFormat dirDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
 		String timestamp = dirDateFormat.format(new Date());
 		
-		File logDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
+		logDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
 		if (!logDir.exists()) {
 			logDir.mkdirs();
 		}
@@ -122,11 +132,12 @@ public class Application {
 		logger = new DataLogger(logDir);
 	}
 	
-	protected void sensorSetup() throws IOException {
+	protected void setupSensors() throws IOException {
 		setupADXL345();
 		setupITG3205();
 		setupMS5611();
 		setupADS1115();
+		setupGPS();
 	}
 	
 	private void setupADXL345() throws IOException {
@@ -174,7 +185,13 @@ public class Application {
 		ads1115.setTimeout(timeout);
 	}
 	
-	protected void serverSetup() throws IOException {
+	private void setupGPS() throws FileNotFoundException {
+		gps = new AdafruitGPS(new FileInputStream(GPS_DEVICE));
+		gps.setOutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + GPS_LOG));
+		gps.setGPS(sensors.gps);
+	}
+	
+	protected void setupServer() throws IOException {
 		server = new DatagramServer(SERVER_PORT);
 		server.start();
 	}
@@ -201,7 +218,7 @@ public class Application {
 		}
 	}
 
-	protected void sensorLoop() throws IOException {
+	protected void loopSensors() throws IOException {
 		if (System.nanoTime() - start >= SENSOR_NANOSECONDS_PER_SAMPLE) {
 			start = System.nanoTime();
 			
@@ -239,7 +256,7 @@ public class Application {
 		}
 	}
 	
-	protected void serverLoop() {
+	protected void loopServer() {
 		Message message = server.read();
 		if (message != null) {
 			try {
@@ -254,7 +271,7 @@ public class Application {
 		}
 	}
 
-	protected void inputLoop() throws IOException {
+	protected void loopInput() throws IOException {
 		if (input.ready()) {
 			int c = input.read();
 			switch (c) {
@@ -263,11 +280,12 @@ public class Application {
 				Console.log("?: help");
 				Console.log("t: cpu temperature");
 				Console.log("f: loop frequency");
-				Console.log("q: quit");
 				Console.log("a: accelerometer");
+				Console.log("y: gyroscope");
 				Console.log("b: barometer");
-				Console.log("g: gyroscope");
 				Console.log("c: analog");
+				Console.log("g: gps");
+				Console.log("q: quit");
 				Console.log();
 				break;
 			case 't':
@@ -296,8 +314,8 @@ public class Application {
 				float pressure = sensors.getBarometerPressure();
 				Console.log(temperature + " C, " + pressure + " mbar");
 				break;
-			case 'g':
-			case 'G':
+			case 'y':
+			case 'Y':
 				sensors.getGyroscope(tmpVec);
 				Console.log(tmpVec + " deg/s");
 				break;
@@ -305,6 +323,10 @@ public class Application {
 			case 'C':
 				float[] a = sensors.analog;
 				Console.log("A0=" + a[0] + " mV,\tA1=" + a[1] + " mV,\tA2=" + a[2] + " mV,\tA3=" + a[3] + " mV");
+				break;
+			case 'g':
+			case 'G':
+				Console.log("latitude=" + sensors.gps.getLatitude() + ", longitude=" + sensors.gps.getLongitude() + ", altitude=" + sensors.gps.getAltitude() + " m MSL");
 				break;
 			case 'q':
 			case 'Q':
