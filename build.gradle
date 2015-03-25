@@ -5,6 +5,9 @@ allprojects {
     
     repositories {
         mavenCentral()
+        maven {
+            url "https://oss.sonatype.org/content/groups/public"
+        }
     }
 
     ext {
@@ -20,6 +23,7 @@ allprojects {
 
 project(":core") {
     dependencies {
+        compile "com.badlogicgames.gdx:gdx:1.3.1"
         compile "com.google.guava:guava:18.0"
         testCompile "junit:junit:4.11"
     }
@@ -29,13 +33,13 @@ project(":server") {
     dependencies {
         compile project(":core");
         
-        compile('com.pi4j:pi4j-core:0.0.5') {
+        compile('com.pi4j:pi4j-core:1.1-SNAPSHOT') {
 	        exclude module: 'pi4j-native'
 	    }
-	    compile('com.pi4j:pi4j-device:0.0.5') {
+	    compile('com.pi4j:pi4j-device:1.1-SNAPSHOT') {
 	        exclude module: 'pi4j-native'
 	    }
-	    compile('com.pi4j:pi4j-gpio-extension:0.0.5') {
+	    compile('com.pi4j:pi4j-gpio-extension:1.1-SNAPSHOT') {
 	        exclude module: 'pi4j-native'
 	    }
 	    
