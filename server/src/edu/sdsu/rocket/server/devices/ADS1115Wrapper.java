@@ -8,7 +8,8 @@ public class ADS1115Wrapper {
 	public static final int FRESH   =  0;
 	public static final int TIMEOUT =  1;
 	
-	private static final boolean DEBUG = false;
+	private static final boolean DEBUG = true;
+	private static final int CHANNELS = 4;
 	
 	enum State {
 		POWERED_DOWN,
@@ -17,12 +18,6 @@ public class ADS1115Wrapper {
 		CONVERSION_COMPLETE,
 	};
 	
-	byte[] mux = new byte[] {
-			ADS1115.ADS1115_MUX_P0_NG,
-			ADS1115.ADS1115_MUX_P1_NG,
-			ADS1115.ADS1115_MUX_P2_NG,
-			ADS1115.ADS1115_MUX_P3_NG,
-	};
 	float a[] = new float[4];
 	
 	State state = State.POWERED_DOWN;
@@ -55,12 +50,11 @@ public class ADS1115Wrapper {
 	 */
 	public float read(int channel) throws IOException {
 		start = System.nanoTime();
-		ads1115.writeMultiplexer(mux[channel]);
-		ads1115.writeOpStatus(ADS1115.ADS1115_OS_BEGIN);
+		ads1115.setSingleEnded(channel).begin();
 		
 		boolean ready = false, waiting = true;
 		while (!ready) {
-			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_ACTIVE) {
+			if (ads1115.isPerformingConversion()) {
 				ready = true;
 			} else if (System.nanoTime() - start > timeout) {
 				/*
@@ -70,16 +64,16 @@ public class ADS1115Wrapper {
 				 */
 				ready = true;
 				waiting = false;
-//				System.out.print("?");
+				if (DEBUG) System.out.print("?");
 			}
 		}
 		
 		// wait for conversion
 		while (waiting) {
-			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_INACTIVE) {
+			if (!ads1115.isPerformingConversion()) {
 				waiting = false;
 			} else if (System.nanoTime() - start > timeout) {
-//				System.out.print("!");
+				if (DEBUG) System.out.print("!");
 				waiting = false;
 			}
 		}
@@ -91,14 +85,16 @@ public class ADS1115Wrapper {
 	public int read(float[] raw) throws IOException {
 		if (State.POWERED_DOWN.equals(state)) {
 			start = System.nanoTime();
-			ads1115.writeMultiplexer(mux[i]);
-			ads1115.writeOpStatus(ADS1115.ADS1115_OS_BEGIN);
+			
+			int channel = i;
+			ads1115.setSingleEnded(channel).begin();
+			
 			state = State.WAITING_FOR_ASSERT;
 			if (DEBUG) System.out.print("_");
 		}
 		
 		if (State.WAITING_FOR_ASSERT.equals(state)) {
-			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_ACTIVE) {
+			if (ads1115.isPerformingConversion()) {
 				state = State.CONVERSION_IN_PROGRESS;
 				if (DEBUG) System.out.print("^");
 			} else {
@@ -117,7 +113,7 @@ public class ADS1115Wrapper {
 		}
 		
 		if (State.CONVERSION_IN_PROGRESS.equals(state)) {
-			if (ads1115.readOpStatus() == ADS1115.ADS1115_OS_INACTIVE) {
+			if (!ads1115.isPerformingConversion()) {
 //				System.out.println("Conversion complete.");
 				state = State.CONVERSION_COMPLETE;
 				if (DEBUG) System.out.print("-");
@@ -131,10 +127,10 @@ public class ADS1115Wrapper {
 			if (DEBUG) System.out.print(i);
 			state = State.POWERED_DOWN;
 			a[i++] = ads1115.readMillivolts();
-			if (i == mux.length) {
+			if (i == CHANNELS) {
 				if (DEBUG) System.out.println();
 //				System.out.println("A0=" + a[0] + " mV,\tA1=" + a[1] + " mV,\tA2=" + a[2] + " mV,\tA3=" + a[3] + " mV");
-				System.arraycopy(a /* src */, 0 /* srcPos */, raw /* dest */, 0 /* destPos */, mux.length /* length */);
+				System.arraycopy(a /* src */, 0 /* srcPos */, raw /* dest */, 0 /* destPos */, CHANNELS /* length */);
 				i = 0;
 				return FRESH;
 			}

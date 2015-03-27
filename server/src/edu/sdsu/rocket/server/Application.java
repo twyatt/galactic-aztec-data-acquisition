@@ -37,11 +37,11 @@ public class Application {
 	public static final String FILE_SEPARATOR = System.getProperty("file.separator");
 	private static final long SECONDS_TO_NANOSECONDS = 1000000000L;
 	
-	private static final String GPS_DEVICE = "/dev/ttyUSB0";
-//	private static final String GPS_DEVICE = "/dev/ttyAMA0"; // GPIO
+//	private static final String GPS_DEVICE = "/dev/ttyUSB0";
+	private static final String GPS_DEVICE = "/dev/ttyAMA0"; // GPIO
 	
 	private static final int SERVER_PORT = 4444;
-	private static final int BUFFER_SIZE = 64; // bytes
+	private static final int BUFFER_SIZE = 128; // bytes
 	private static final long FREQUENCY_CHECK_INTERVAL = 10L * SECONDS_TO_NANOSECONDS; // nanoseconds
 	
 	protected static final String EVENT_LOG   = "event.log";
@@ -80,6 +80,7 @@ public class Application {
 	private final Vector3 tmpVec = new Vector3();
 	
 	public Application(Sensors sensors) {
+		Console.log("Starting application.");
 		if (sensors == null) {
 			throw new NullPointerException();
 		}
@@ -120,14 +121,18 @@ public class Application {
 		String timestamp = dirDateFormat.format(new Date());
 		
 		logDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
+		Console.log("Log Directory: " + logDir);
 		if (!logDir.exists()) {
+			Console.log("mkdir " + logDir);
 			logDir.mkdirs();
 		}
 		
 		long now = System.currentTimeMillis();
 		DateFormat logDateFormat = DateFormat.getDateInstance(DateFormat.LONG);
 		log = new TextLogger(logDir + FILE_SEPARATOR + EVENT_LOG);
-		log.message("Logging started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).");
+		String message = "Logging started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).";
+		Console.log(message);
+		log.message(message);
 		
 		logger = new DataLogger(logDir);
 	}
@@ -137,10 +142,11 @@ public class Application {
 		setupITG3205();
 		setupMS5611();
 		setupADS1115();
-		setupGPS();
+//		setupGPS();
 	}
 	
 	private void setupADXL345() throws IOException {
+		Console.log("Setup ADXL345.");
 		adxl345 = new ADXL345(I2CBus.BUS_1);
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
@@ -154,6 +160,7 @@ public class Application {
 	}
 
 	private void setupITG3205() throws IOException, FileNotFoundException {
+		Console.log("Setup ITG3205.");
 		itg3205 = new ITG3205(I2CBus.BUS_1);
 		itg3205.setup();
 		if (!itg3205.verifyDeviceID()) {
@@ -168,30 +175,41 @@ public class Application {
 	}
 	
 	private void setupMS5611() throws IOException {
+		Console.log("Setup MS5611.");
 		ms5611 = new MS5611Wrapper(new MS5611(I2CBus.BUS_1));
 		ms5611.getDevice().setup();
 	}
 
 	private void setupADS1115() throws IOException {
+		Console.log("Setup ADS1115.");
 		ads1115 = new ADS1115Wrapper(new ADS1115(I2CBus.BUS_1));
-		ads1115.getDevice().setup();
-		ads1115.getDevice().writeGain(ADS1115.ADS1115_PGA_4P096); // +/- 4.096V
-//		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_64); // 64 samples/second => ~15 Hz for 4 single-ended
-//		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_475); // 475 samples/second => ~83 Hz for 4 single-ended
-		ads1115.getDevice().writeRate(ADS1115.ADS1115_RATE_860); // 860 samples/second => ~119 Hz for 4 single-ended
-		int sps = ADS1115.getSamplesPerSecond(ads1115.getDevice().readRate());
+		ADS1115 device = ads1115.getDevice();
+		
+		device.setup()
+			.setGain(ADS1115.Gain.PGA_1)
+			.setMode(ADS1115.Mode.MODE_SINGLE)
+			.setRate(ADS1115.Rate.DR_860SPS)
+//			.setComparator(ADS1115.Comparator.COMP_MODE_HYSTERESIS)
+//			.setPolarity(ADS1115.Polarity.COMP_POL_ACTIVE_HIGH)
+//			.setLatching(ADS1115.Latching.COMP_LAT_LATCHING)
+//			.setQueue(ADS1115.Queue.COMP_QUE_1_CONVERSION)
+			;
+		int sps = device.getRate().getSamplesPerSecond();
+		
 		long timeout = (1L * SECONDS_TO_NANOSECONDS) / sps * 5L; // 5 X expected sample duration
-//		Console.log("ADS1115 timeout: " + timeout);
+		Console.log("ADS1115 timeout: " + timeout);
 		ads1115.setTimeout(timeout);
 	}
 	
 	private void setupGPS() throws FileNotFoundException {
+		Console.log("Setup Adafruit Ultimate GPS.");
 		gps = new AdafruitGPS(new FileInputStream(GPS_DEVICE));
 		gps.setOutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + GPS_LOG));
 		gps.setGPS(sensors.gps);
 	}
 	
 	protected void setupServer() throws IOException {
+		Console.log("Setup server.");
 		server = new DatagramServer(SERVER_PORT);
 		server.start();
 	}
