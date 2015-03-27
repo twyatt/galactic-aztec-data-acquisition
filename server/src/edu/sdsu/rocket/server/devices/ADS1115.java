@@ -248,6 +248,9 @@ public class ADS1115 {
     		this.config = config;
     	}
     }
+    
+    public static final int HI_THRESH_RDY = 0xFFFF;
+    public static final int LO_THRESH_RDY = 0x0000;
 	
 	/**
 	 * Address of I2C device.
@@ -394,6 +397,29 @@ public class ADS1115 {
 				| polarity.config
 				| latching.config
 				| queue.config;
+	}
+	
+	public ADS1115 writeConfig() throws IOException {
+		writeRegister(Register.CONFIG, getConfig());
+		return this;
+	}
+	
+	public ADS1115 writeLoThresh(int value) throws IOException {
+		writeRegister(Register.LO_THRESH, value);
+		return this;
+	}
+	
+	public int readLoThresh() throws IOException {
+		return readRegister(Register.LO_THRESH);
+	}
+	
+	public ADS1115 writeHiThresh(int value) throws IOException {
+		writeRegister(Register.HI_THRESH, value);
+		return this;
+	}
+	
+	public int readHiThresh() throws IOException {
+		return readRegister(Register.HI_THRESH);
 	}
 	
 	public int readConfig() throws IOException {
