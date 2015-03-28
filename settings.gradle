@@ -1,6 +1,5 @@
 include 'core'
 include 'server'
 include 'data'
-include 'control'
 include 'log2csv'
 

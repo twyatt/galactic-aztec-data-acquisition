@@ -54,12 +54,6 @@ project(":data") {
     }
 }
 
-project(":control") {
-    dependencies {
-        compile project(":core");
-    }
-}
-
 project(":log2csv") {
     dependencies {
         compile project(":core");
