@@ -29,7 +29,7 @@ public class Sensors {
 	public final short[] accelerometer = new short[3]; // G * scale
 	public final short[] gyroscope = new short[3]; // deg/sec * scale
 	public final int[] barometer = new int[2]; // C * 100, mbar * 100
-	public final float[] analog = new float[4]; // mV
+	public final Analog analog = new Analog(); // mV
 	public final GPS gps = new GPS();
 	
 	public void setAccelerometerScalingFactor(float scale) {
@@ -96,7 +96,7 @@ public class Sensors {
 		
 		// P51-500-A-A-I36-5V-000-000
 		// calibrated transducer #1 on Nov 13, 2014
-		return 0.210439f * analog[MOTOR_INDEX] - 150.502f;
+		return 0.210439f * analog.get(MOTOR_INDEX) - 150.502f;
 	}
 	
 	public float getLoxPressure() {
@@ -105,7 +105,7 @@ public class Sensors {
 		
 		// P51-500-A-A-I36-5V-000-000
 		// calibrated transducer #2 on Nov 11, 2014
-		return 0.20688f * analog[LOX_INDEX] - 143.273f;
+		return 0.20688f * analog.get(LOX_INDEX) - 143.273f;
 	}
 	
 	public float getKerosenePressure() {
@@ -114,7 +114,7 @@ public class Sensors {
 		
 		// P51-500-A-A-I36-5V-000-000
 		// calibrated transducer #3 on Nov 11, 2014
-		return 0.212968f * analog[KEROSENE_INDEX] - 147.109f;
+		return 0.212968f * analog.get(KEROSENE_INDEX) - 147.109f;
 	}
 	
 	public float getHeliumPressure() {
@@ -123,14 +123,14 @@ public class Sensors {
 		
 		// MSP-300-2K5-P-4-N-1
 		// calibrated transducer #4 on Nov 13, 2014
-		return 1.060797f * analog[HELIUM_INDEX] - 653.691f;
+		return 1.060797f * analog.get(HELIUM_INDEX) - 653.691f;
 	}
 	
 	public void toByteBuffer(ByteBuffer buffer) {
-		buffer.putFloat(analog[MOTOR_INDEX]);
-		buffer.putFloat(analog[LOX_INDEX]);
-		buffer.putFloat(analog[KEROSENE_INDEX]);
-		buffer.putFloat(analog[HELIUM_INDEX]);
+		buffer.putFloat(analog.get(MOTOR_INDEX));
+		buffer.putFloat(analog.get(LOX_INDEX));
+		buffer.putFloat(analog.get(KEROSENE_INDEX));
+		buffer.putFloat(analog.get(HELIUM_INDEX));
 		
 		buffer.putInt(barometer[BAROMETER_TEMPERATURE_INDEX]);
 		buffer.putInt(barometer[BAROMETER_PRESSURE_INDEX]);
@@ -151,10 +151,10 @@ public class Sensors {
 	}
 	
 	public void fromByteBuffer(ByteBuffer buffer) {
-		analog[MOTOR_INDEX]    = buffer.getFloat();
-		analog[LOX_INDEX]      = buffer.getFloat();
-		analog[KEROSENE_INDEX] = buffer.getFloat();
-		analog[HELIUM_INDEX]   = buffer.getFloat();
+		analog.set(MOTOR_INDEX,    buffer.getFloat());
+		analog.set(LOX_INDEX,      buffer.getFloat());
+		analog.set(KEROSENE_INDEX, buffer.getFloat());
+		analog.set(HELIUM_INDEX,   buffer.getFloat());
 		
 		barometer[BAROMETER_TEMPERATURE_INDEX] = buffer.getInt();
 		barometer[BAROMETER_PRESSURE_INDEX]    = buffer.getInt();
