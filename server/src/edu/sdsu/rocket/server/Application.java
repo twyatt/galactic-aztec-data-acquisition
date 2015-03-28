@@ -18,16 +18,22 @@ import java.util.Date;
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
 
-import edu.sdsu.rocket.helpers.Stopwatch;
 import edu.sdsu.rocket.io.Message;
+import edu.sdsu.rocket.models.Analog;
+import edu.sdsu.rocket.models.Barometer;
+import edu.sdsu.rocket.models.GPS;
 import edu.sdsu.rocket.models.Sensors;
 import edu.sdsu.rocket.server.devices.ADS1115;
-import edu.sdsu.rocket.server.devices.ADS1115Wrapper;
+import edu.sdsu.rocket.server.devices.ADS1115Device;
 import edu.sdsu.rocket.server.devices.ADXL345;
+import edu.sdsu.rocket.server.devices.ADXL345Device;
 import edu.sdsu.rocket.server.devices.AdafruitGPS;
 import edu.sdsu.rocket.server.devices.ITG3205;
+import edu.sdsu.rocket.server.devices.ITG3205Device;
+import edu.sdsu.rocket.server.devices.ITG3205Device.GyroscopeListener;
 import edu.sdsu.rocket.server.devices.MS5611;
-import edu.sdsu.rocket.server.devices.MS5611Wrapper;
+import edu.sdsu.rocket.server.devices.MS5611Device;
+import edu.sdsu.rocket.server.devices.MS5611Device.Fault;
 import edu.sdsu.rocket.server.io.DataLogger;
 import edu.sdsu.rocket.server.io.DatagramServer;
 import edu.sdsu.rocket.server.io.TextLogger;
@@ -37,12 +43,8 @@ public class Application {
 	public static final String FILE_SEPARATOR = System.getProperty("file.separator");
 	private static final long SECONDS_TO_NANOSECONDS = 1000000000L;
 	
-//	private static final String GPS_DEVICE = "/dev/ttyUSB0";
-	private static final String GPS_DEVICE = "/dev/ttyAMA0"; // GPIO
-	
 	private static final int SERVER_PORT = 4444;
 	private static final int BUFFER_SIZE = 128; // bytes
-	private static final long FREQUENCY_CHECK_INTERVAL = 10L * SECONDS_TO_NANOSECONDS; // nanoseconds
 	
 	protected static final String EVENT_LOG   = "event.log";
 	protected static final String ADXL345_LOG = "adxl345.log";
@@ -52,29 +54,21 @@ public class Application {
 	protected static final String GPS_LOG     = "gps.txt";
 	private static final byte SCALING_FACTOR = 0x1; // log identifier
 	
-	private static final float SENSOR_FREQUENCY = 2f; // Hz
-	private static final long SENSOR_NANOSECONDS_PER_SAMPLE = (long) (1f / SENSOR_FREQUENCY * SECONDS_TO_NANOSECONDS);
-	private long start = System.nanoTime() - SENSOR_NANOSECONDS_PER_SAMPLE;
-	
-	ADXL345 adxl345;
-	ITG3205 itg3205;
-	MS5611Wrapper ms5611;
-	ADS1115Wrapper ads1115;
-	AdafruitGPS gps;
-
 	private File logDir;
 	
 	protected TextLogger log;
 	protected DataLogger logger;
+	private final DeviceManager manager = new DeviceManager();
 	private DatagramServer server;
-	private int messageNumber;
 	
 	private final Reader input = new InputStreamReader(System.in);
 	protected final Sensors sensors;
 	
-	private final Stopwatch stopwatch = new Stopwatch();
+	private AdafruitGPS gps;
+	
+	private long start = System.nanoTime();
 	private long loops;
-	private float frequency; // Hz
+	private long frequency; // Hz
 	
 	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 	private final Vector3 tmpVec = new Vector3();
@@ -94,20 +88,21 @@ public class Application {
 	}
 	
 	public void loop() throws IOException {
-		try {
-			loopSensors();
-		} catch (IOException e) {
-			Console.error(e.getMessage());
-		}
 		loopServer();
 		loopInput();
 		
+		try {
+			Thread.sleep(10L);
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
 		loops++;
-		if (stopwatch.nanoSecondsElapsed() >= FREQUENCY_CHECK_INTERVAL) {
-			float seconds = stopwatch.nanoSecondsElapsed() / SECONDS_TO_NANOSECONDS;
-			frequency = (float) loops / seconds;
+		long time = System.nanoTime();
+		if (time - start > 1000000000) {
+			frequency = loops;
 			loops = 0;
-			stopwatch.reset();
+			start = time;
 		}
 	}
 	
@@ -147,7 +142,7 @@ public class Application {
 	
 	private void setupADXL345() throws IOException {
 		Console.log("Setup ADXL345.");
-		adxl345 = new ADXL345(I2CBus.BUS_1);
+		ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
 			throw new IOException("Failed to verify ADXL345 device ID");
@@ -155,13 +150,29 @@ public class Application {
 		adxl345.writeRange(ADXL345.ADXL345_RANGE_16G);
 		adxl345.writeFullResolution(true);
 		adxl345.writeRate(ADXL345.ADXL345_RATE_400);
-		sensors.setAccelerometerScalingFactor(adxl345.getScalingFactor());
-		logger.log(ADXL345_LOG, SCALING_FACTOR, sensors.getAccelerometerScalingFactor());
+		sensors.accelerometer.setScalingFactor(adxl345.getScalingFactor());
+		logger.log(ADXL345_LOG, SCALING_FACTOR, sensors.accelerometer.getScalingFactor());
+		
+		ADXL345Device device = new ADXL345Device(adxl345);
+		device.setListener(new ADXL345Device.AccelerometerListener() {
+			@Override
+			public void onValues(short x, short y, short z) {
+				sensors.accelerometer.setRawX(x);
+				sensors.accelerometer.setRawY(y);
+				sensors.accelerometer.setRawZ(z);
+				try {
+					logger.log(ADXL345_LOG, x, y, z);
+				} catch (FileNotFoundException e) {
+					Console.error(e.getMessage());
+				}
+			}
+		});
+		manager.add(device, 100 /* Hz */);
 	}
 
 	private void setupITG3205() throws IOException, FileNotFoundException {
 		Console.log("Setup ITG3205.");
-		itg3205 = new ITG3205(I2CBus.BUS_1);
+		ITG3205 itg3205 = new ITG3205(I2CBus.BUS_1);
 		itg3205.setup();
 		if (!itg3205.verifyDeviceID()) {
 			throw new IOException("Failed to verify ITG3205 device ID");
@@ -170,40 +181,96 @@ public class Application {
 		// divider = F_internal / F_sample - 1
 		itg3205.writeSampleRateDivider(2); // 2667 Hz
 		itg3205.writeDLPFBandwidth(ITG3205.ITG3205_DLPF_BW_256);
-		sensors.setGyroscopeScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
-		logger.log(ITG3205_LOG, SCALING_FACTOR, sensors.getGyroscopeScalingFactor());
+		
+		sensors.gyroscope.setScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
+		logger.log(ITG3205_LOG, SCALING_FACTOR, sensors.gyroscope.getScalingFactor());
+		
+		ITG3205Device device = new ITG3205Device(itg3205);
+		device.setListener(new GyroscopeListener() {
+			@Override
+			public void onValues(short x, short y, short z) {
+				sensors.gyroscope.setRawX(x);
+				sensors.gyroscope.setRawY(y);
+				sensors.gyroscope.setRawZ(z);
+				try {
+					logger.log(ITG3205_LOG, x, y, z);
+				} catch (FileNotFoundException e) {
+					Console.error(e.getMessage());
+				}
+			}
+			
+		});
+		manager.add(device, 100 /* Hz */);
 	}
 	
 	private void setupMS5611() throws IOException {
 		Console.log("Setup MS5611.");
-		ms5611 = new MS5611Wrapper(new MS5611(I2CBus.BUS_1));
-		ms5611.getDevice().setup();
+		MS5611 ms5611 = new MS5611(I2CBus.BUS_1);
+		ms5611.setup();
+		
+		MS5611Device device = new MS5611Device(ms5611);
+		device.setListener(new MS5611Device.BarometerListener() {
+			@Override
+			public void onValues(int T, int P) {
+				sensors.barometer.setRawTemperature(T);
+				sensors.barometer.setRawPressure(P);
+				try {
+					logger.log(MS5611_LOG, T, P);
+				} catch (FileNotFoundException e) {
+					Console.error(e.getMessage());
+				}
+			}
+
+			@Override
+			public void onFault(Fault fault) {
+				Console.error("MS5611 error: " + fault);
+			}
+		});
+		manager.add(device, 100 /* Hz */);
 	}
 
 	private void setupADS1115() throws IOException {
 		Console.log("Setup ADS1115.");
-		ads1115 = new ADS1115Wrapper(new ADS1115(I2CBus.BUS_1));
-		ADS1115 device = ads1115.getDevice();
 		
-		device.setup()
+		ADS1115 ads1115 = new ADS1115(I2CBus.BUS_1);
+		ads1115.setup()
 			.setGain(ADS1115.Gain.PGA_1)
 			.setMode(ADS1115.Mode.MODE_SINGLE)
 			.setRate(ADS1115.Rate.DR_860SPS)
-//			.setComparator(ADS1115.Comparator.COMP_MODE_HYSTERESIS)
-//			.setPolarity(ADS1115.Polarity.COMP_POL_ACTIVE_HIGH)
-//			.setLatching(ADS1115.Latching.COMP_LAT_LATCHING)
-//			.setQueue(ADS1115.Queue.COMP_QUE_1_CONVERSION)
+			.setComparator(ADS1115.Comparator.COMP_MODE_HYSTERESIS)
+			.setPolarity(ADS1115.Polarity.COMP_POL_ACTIVE_HIGH)
+			.setLatching(ADS1115.Latching.COMP_LAT_LATCHING)
+			.setQueue(ADS1115.Queue.COMP_QUE_1_CONVERSION)
 			;
-		int sps = device.getRate().getSamplesPerSecond();
+		int sps = ads1115.getRate().getSamplesPerSecond();
 		
+		ADS1115Device device = new ADS1115Device(ads1115);
 		long timeout = (1L * SECONDS_TO_NANOSECONDS) / sps * 5L; // 5 X expected sample duration
+		device.setTimeout(timeout);
 		Console.log("ADS1115 timeout: " + timeout);
-		ads1115.setTimeout(timeout);
+		device.setListener(new ADS1115Device.AnalogListener() {
+			@Override
+			public void onValues(float a0, float a1, float a2, float a3) {
+				sensors.analog.setA0(a0);
+				sensors.analog.setA1(a1);
+				sensors.analog.setA2(a2);
+				sensors.analog.setA3(a3);
+				try {
+					logger.log(ADS1115_LOG, a0, a1, a2, a3);
+				} catch (FileNotFoundException e) {
+					Console.error(e.getMessage());
+				}
+			}
+		});
+		
+		manager.add(device);
 	}
 	
 	private void setupGPS() throws FileNotFoundException {
 		Console.log("Setup Adafruit Ultimate GPS.");
-		gps = new AdafruitGPS(new FileInputStream(GPS_DEVICE));
+//		FileInputStream in = new FileInputStream("/dev/ttyUSB0"); // USB
+		FileInputStream in = new FileInputStream("/dev/ttyAMA0"); // GPIO
+		gps = new AdafruitGPS(in);
 		gps.setOutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + GPS_LOG));
 		gps.setGPS(sensors.gps);
 	}
@@ -218,13 +285,14 @@ public class Application {
 	 * Sends current sensor data to specified address.
 	 * 
 	 * @param address
+	 * @param number 
 	 * @throws IOException 
 	 */
-	public void sendSensorData(SocketAddress address) throws IOException {
+	public void sendSensorData(SocketAddress address, int number) throws IOException {
 		DatagramSocket socket = server.getSocket();
 		if (socket != null) {
 			buffer.clear();
-			buffer.putInt(++messageNumber);
+			buffer.putInt(number);
 			buffer.put(Message.SENSOR);
 			sensors.toByteBuffer(buffer);
 			
@@ -235,56 +303,21 @@ public class Application {
 			socket.send(packet);
 		}
 	}
-
-	protected void loopSensors() throws IOException {
-		if (System.nanoTime() - start >= SENSOR_NANOSECONDS_PER_SAMPLE) {
-			start = System.nanoTime();
-			
-			if (adxl345 != null) {
-				adxl345.readRawAcceleration(sensors.accelerometer);
-				logger.log(ADXL345_LOG, sensors.accelerometer);
-			}
-			
-			if (itg3205 != null) {
-				itg3205.readRawRotations(sensors.gyroscope);
-				logger.log(ITG3205_LOG, sensors.gyroscope);
-			}
-			
-			if (ms5611 != null) {
-				int status;
-				status = ms5611.read(sensors.barometer);
-				if (status == 0) {
-					logger.log(MS5611_LOG, sensors.barometer);
-				} else if (status > 0) { // fault occurred
-//					Console.error("MS5611 D" + status + " fault.");
-					// TODO log barometer fault
-				}
-			}
-			
-			if (ads1115 != null) {
-				sensors.analog[1] = ads1115.read(1);
-				sensors.analog[2] = ads1115.read(2);
-				sensors.analog[3] = ads1115.read(3);
-			}
-		}
-		
-		if (ads1115 != null) {
-			sensors.analog[0] = ads1115.read(0);
-			logger.log(ADS1115_LOG, sensors.analog);
-		}
-	}
 	
 	protected void loopServer() {
 		Message message = server.read();
 		if (message != null) {
 			try {
 				switch (message.id) {
+				case Message.PING:
+					// FIXME implement
+					break;
 				case Message.SENSOR:
-					sendSensorData(message.address);
+					sendSensorData(message.address, message.number);
 					break;
 				}
 			} catch (IOException e) {
-				System.err.println(e.getMessage());
+				Console.error(e.getMessage());
 			}
 		}
 	}
@@ -319,36 +352,37 @@ public class Application {
 				break;
 			case 'f':
 			case 'F':
-				Console.log("Loop Frequency: " + frequency + " Hz");
+				Console.log("Main: " + frequency + " Hz, " + manager);
 				break;
 			case 'a':
 			case 'A':
-				sensors.getAccelerometer(tmpVec);
+				sensors.accelerometer.get(tmpVec);
 				Console.log(tmpVec.scl(9.8f) + " m/s^2");
 				break;
 			case 'b':
 			case 'B':
-				float temperature = sensors.getBarometerTemperature();
-				float pressure = sensors.getBarometerPressure();
-				Console.log(temperature + " C, " + pressure + " mbar");
+				Barometer barometer = sensors.barometer;
+				Console.log(barometer.getTemperature() + " C, " + barometer.getPressure() + " mbar");
 				break;
 			case 'y':
 			case 'Y':
-				sensors.getGyroscope(tmpVec);
+				sensors.gyroscope.get(tmpVec);
 				Console.log(tmpVec + " deg/s");
 				break;
 			case 'c':
 			case 'C':
-				float[] a = sensors.analog;
-				Console.log("A0=" + a[0] + " mV,\tA1=" + a[1] + " mV,\tA2=" + a[2] + " mV,\tA3=" + a[3] + " mV");
+				Analog a = sensors.analog;
+				Console.log("A0=" + a.getA0() + " mV,\tA1=" + a.getA1() + " mV,\tA2=" + a.getA2() + " mV,\tA3=" + a.getA3() + " mV");
 				break;
 			case 'g':
 			case 'G':
-				Console.log("latitude=" + sensors.gps.getLatitude() + ", longitude=" + sensors.gps.getLongitude() + ", altitude=" + sensors.gps.getAltitude() + " m MSL");
+				GPS gps = sensors.gps;
+				Console.log("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
 				break;
 			case 'q':
 			case 'Q':
 				Console.log("Quitting.");
+				manager.clear();
 				System.exit(0);
 			}
 		}

@@ -30,6 +30,7 @@ import client.io.DatagramClient;
 
 import com.badlogic.gdx.math.Vector3;
 
+import edu.sdsu.rocket.models.Pressures;
 import edu.sdsu.rocket.models.Sensors;
 import eu.hansolo.enzo.common.Section;
 import eu.hansolo.enzo.gauge.Gauge;
@@ -134,10 +135,10 @@ public class MainController {
 				gauge.setSectionFill1(Color.RED);
 			}
 		} else {
-			motor    = makePressureGauge("Motor",    "PSI", Sensors.MOTOR_MAX_PRESSURE,    1);
-			lox      = makePressureGauge("LOX",      "PSI", Sensors.LOX_MAX_PRESSURE,      10);
-			kerosene = makePressureGauge("Kerosene", "PSI", Sensors.KEROSENE_MAX_PRESSURE, 10);
-			helium   = makePressureGauge("Helium",   "PSI", Sensors.HELIUM_MAX_PRESSURE,   50);
+			motor    = makePressureGauge("Motor",    "PSI", Pressures.MOTOR_MAX_PRESSURE,    1);
+			lox      = makePressureGauge("LOX",      "PSI", Pressures.LOX_MAX_PRESSURE,      10);
+			kerosene = makePressureGauge("Kerosene", "PSI", Pressures.KEROSENE_MAX_PRESSURE, 10);
+			helium   = makePressureGauge("Helium",   "PSI", Pressures.HELIUM_MAX_PRESSURE,   50);
 		}
 		
 		accelerometerX = new NumberAxis();
@@ -207,21 +208,21 @@ public class MainController {
 	
 	public void updateSensors(Sensors sensors) {
 		if (DEBUG_SENSORS) {
-			motor.setValue(sensors.analog[0]);
-			lox.setValue(sensors.analog[1]);
-			kerosene.setValue(sensors.analog[2]);
-			helium.setValue(sensors.analog[3]);
+			motor.setValue(sensors.analog.getA0());
+			lox.setValue(sensors.analog.getA1());
+			kerosene.setValue(sensors.analog.getA2());
+			helium.setValue(sensors.analog.getA3());
 		} else {
-			motor.setValue(sensors.getMotorPressure());
-			lox.setValue(sensors.getLoxPressure());
-			kerosene.setValue(sensors.getKerosenePressure());
-			helium.setValue(sensors.getHeliumPressure());
+			motor.setValue(sensors.pressures.getMotor());
+			lox.setValue(sensors.pressures.getLOX());
+			kerosene.setValue(sensors.pressures.getKerosene());
+			helium.setValue(sensors.pressures.getHelium());
 		}
 		
 		chartIndex++;
 		
 		Vector3 accelerometer = tmpVec;
-		sensors.getAccelerometer(accelerometer);
+		sensors.accelerometer.get(accelerometer);
 		accelerometer.scl(9.8f);
 		accelerometerX.setLowerBound(chartIndex - ACCELEROMETER_DATA_POINTS + 1);
 		accelerometerX.setUpperBound(chartIndex);
@@ -239,7 +240,7 @@ public class MainController {
 		accelerometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.z));
 		
 		Vector3 gyroscope = tmpVec;
-		sensors.getGyroscope(gyroscope);
+		sensors.gyroscope.get(gyroscope);
 		gyroscopeX.setLowerBound(chartIndex - GYROSCOPE_DATA_POINTS + 1);
 		gyroscopeX.setUpperBound(chartIndex);
 		while (gyroscopeXData.getData().size() >= GYROSCOPE_DATA_POINTS) {

@@ -16,33 +16,39 @@ public class TestApplication extends Application {
 	
 	@Override
 	protected void setupSensors() throws IOException {
-		sensors.setAccelerometerScalingFactor(0.001f);
-		sensors.setGyroscopeScalingFactor(1f);
+		sensors.accelerometer.setScalingFactor(0.001f);
+		sensors.gyroscope.setScalingFactor(1f);
 	}
 	
 	@Override
-	protected void loopSensors() throws IOException {
+	public void loop() throws IOException {
+		super.loop();
+		
 		x += 0.01f;
 		float c = MathUtils.cos(x); // -1 to 1
 		float s = MathUtils.sin(x); // -1 to 1
 		float cp = (c / 2f) + 0.5f; // 0 to 1
 		float sp = (s / 2f) + 0.5f; // 0 to 1
 		
-		sensors.accelerometer[Sensors.X_INDEX] = (short) (s * 9.8 * 100);
-		sensors.accelerometer[Sensors.Y_INDEX] = (short) (c * 9.8 * 100);
-		sensors.accelerometer[Sensors.Z_INDEX] = (short) (s * 9.8 * 100);
-		sensors.gyroscope[Sensors.X_INDEX] = (short) (s * 360);
-		sensors.gyroscope[Sensors.Y_INDEX] = (short) (c * 360);
-		sensors.gyroscope[Sensors.Z_INDEX] = (short) (s * 360);
-		sensors.barometer[Sensors.BAROMETER_PRESSURE_INDEX]    = (int) cp * 1000 * 100;
-		sensors.barometer[Sensors.BAROMETER_TEMPERATURE_INDEX] = (int) sp * 100 * 100;
-		sensors.analog[Sensors.MOTOR_INDEX]    = sp * 5000;
-		sensors.analog[Sensors.LOX_INDEX]      = sp * 5000;
-		sensors.analog[Sensors.KEROSENE_INDEX] = sp * 5000;
-		sensors.analog[Sensors.HELIUM_INDEX]   = sp * 5000;
+		sensors.accelerometer.setRawX((int) (s * 9.8 * 100));
+		sensors.accelerometer.setRawY((int) (c * 9.8 * 100));
+		sensors.accelerometer.setRawZ((int) (s * 9.8 * 100));
+		logger.log(ADXL345_LOG, sensors.accelerometer.getRawX(), sensors.accelerometer.getRawY(), sensors.accelerometer.getRawZ());
 		
-		logger.log(ADS1115_LOG, sensors.analog);
-		logger.log(ADXL345_LOG, sensors.accelerometer);
+		sensors.gyroscope.setRawX((short) (s * 360));
+		sensors.gyroscope.setRawY((short) (c * 360));
+		sensors.gyroscope.setRawZ((short) (s * 360));
+		logger.log(ITG3205_LOG, sensors.gyroscope.getRawX(), sensors.gyroscope.getRawY(), sensors.gyroscope.getRawZ());
+		
+		sensors.barometer.setRawTemperature((int) sp * 100 * 100);
+		sensors.barometer.setRawPressure((int) cp * 1000 * 100);
+		logger.log(MS5611_LOG, sensors.barometer.getRawTemperature(), sensors.barometer.getRawPressure());
+		
+		sensors.analog.setA0(sp * 5000);
+		sensors.analog.setA1(sp * 5000);
+		sensors.analog.setA2(sp * 5000);
+		sensors.analog.setA3(sp * 5000);
+		logger.log(ADS1115_LOG, sensors.analog.getA0(), sensors.analog.getA1(), sensors.analog.getA2(), sensors.analog.getA3());
 		
 		try {
 			Thread.sleep(10L);

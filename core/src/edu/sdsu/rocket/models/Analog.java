@@ -71,4 +71,13 @@ public class Analog {
 		}
 	}
 	
+	@Override
+	public String toString() {
+		return super.toString()
+				+ ": A0=" + getA0()
+				+ ", A1=" + getA1()
+				+ ", A2=" + getA2()
+				+ ", A3=" + getA3();
+	}
+	
 }

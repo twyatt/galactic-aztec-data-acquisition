@@ -52,19 +52,19 @@ public class DataLogger {
 		}
 	}
 	
-	public void log(String filename, int[] values) throws FileNotFoundException {
+	public void log(String filename, int ... values) throws FileNotFoundException {
 		if (isEnabled) {
 			log(getOutputStream(filename), values);
 		}
 	}
 	
-	public void log(String filename, short[] values) throws FileNotFoundException {
+	public void log(String filename, short ... values) throws FileNotFoundException {
 		if (isEnabled) {
 			log(getOutputStream(filename), values);
 		}
 	}
 	
-	public void log(String filename, float[] values) throws FileNotFoundException {
+	public void log(String filename, float ... values) throws FileNotFoundException {
 		if (isEnabled) {
 			log(getOutputStream(filename), values);
 		}
