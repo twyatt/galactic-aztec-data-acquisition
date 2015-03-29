@@ -82,6 +82,7 @@ public class DeviceManager {
 			while (!Thread.currentThread().isInterrupted()) {
 				try {
 					device.loop();
+					
 					if (sleep != 0) {
 						// http://stackoverflow.com/q/4300653/196486
 						if (sleep > 999999) {
@@ -97,11 +98,9 @@ public class DeviceManager {
 					long time = System.nanoTime();
 					if (time - start > 1000000000) {
 						if (throttle != 0) {
-							long delay = (time - start) / throttle - (time - start) / loops;
-							if (sleep == 0)
-								sleep = delay;
-							else
-								sleep += delay;
+							long dt = (time - start) / loops - sleep; // actual time per loop
+							long t = (time - start) / throttle; // target time per loop
+							sleep = (sleep * (75 / 100) + (t - dt) * (25 / 100)) / 2; // weighted average
 							if (sleep < 0) sleep = 0;
 						}
 						
