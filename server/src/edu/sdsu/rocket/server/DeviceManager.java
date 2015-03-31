@@ -100,7 +100,7 @@ public class DeviceManager {
 						if (throttle != 0) {
 							long dt = (time - start) / loops - sleep; // actual time per loop
 							long t = (time - start) / throttle; // target time per loop
-							sleep = (sleep * (75 / 100) + (t - dt) * (25 / 100)) / 2; // weighted average
+							sleep = t - dt;
 							if (sleep < 0) sleep = 0;
 						}
 						
