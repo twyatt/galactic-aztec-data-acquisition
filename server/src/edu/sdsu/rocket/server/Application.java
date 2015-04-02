@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.io.Reader;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
@@ -15,9 +16,16 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
+import net.sf.marineapi.provider.event.PositionEvent;
+import net.sf.marineapi.provider.event.ProviderListener;
+
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
 
+import edu.sdsu.rocket.io.ADS1115OutputStream;
+import edu.sdsu.rocket.io.ADXL345OutputStream;
+import edu.sdsu.rocket.io.ITG3205OutputStream;
+import edu.sdsu.rocket.io.MS5611OutputStream;
 import edu.sdsu.rocket.io.Message;
 import edu.sdsu.rocket.models.Analog;
 import edu.sdsu.rocket.models.Barometer;
@@ -25,6 +33,7 @@ import edu.sdsu.rocket.models.GPS;
 import edu.sdsu.rocket.models.Sensors;
 import edu.sdsu.rocket.server.devices.ADS1115;
 import edu.sdsu.rocket.server.devices.ADS1115Device;
+import edu.sdsu.rocket.server.devices.ADS1115Device.Channel;
 import edu.sdsu.rocket.server.devices.ADXL345;
 import edu.sdsu.rocket.server.devices.ADXL345Device;
 import edu.sdsu.rocket.server.devices.AdafruitGPS;
@@ -34,9 +43,7 @@ import edu.sdsu.rocket.server.devices.ITG3205Device.GyroscopeListener;
 import edu.sdsu.rocket.server.devices.MS5611;
 import edu.sdsu.rocket.server.devices.MS5611Device;
 import edu.sdsu.rocket.server.devices.MS5611Device.Fault;
-import edu.sdsu.rocket.server.io.DataLogger;
 import edu.sdsu.rocket.server.io.DatagramServer;
-import edu.sdsu.rocket.server.io.TextLogger;
 
 public class Application {
 	
@@ -52,12 +59,14 @@ public class Application {
 	protected static final String MS5611_LOG  = "ms5611.log";
 	protected static final String ADS1115_LOG = "ads1115.log";
 	protected static final String GPS_LOG     = "gps.txt";
-	private static final byte SCALING_FACTOR = 0x1; // log identifier
 	
-	private File logDir;
+	protected File logDir;
+	protected PrintWriter log;
+	protected ADXL345OutputStream adxl345log;
+	protected ITG3205OutputStream itg3205log;
+	protected MS5611OutputStream ms5611log;
+	protected ADS1115OutputStream ads1115log;
 	
-	protected TextLogger log;
-	protected DataLogger logger;
 	private final DeviceManager manager = new DeviceManager();
 	private DatagramServer server;
 	
@@ -82,7 +91,7 @@ public class Application {
 	}
 	
 	public void setup() throws IOException {
-		setupLogger();
+		setupLogging();
 		setupSensors();
 		setupServer();
 	}
@@ -106,7 +115,7 @@ public class Application {
 		}
 	}
 	
-	protected void setupLogger() throws IOException {
+	protected void setupLogging() throws IOException {
 		File userDir = new File(System.getProperty("user.dir", "~"));
 		if (!userDir.exists()) {
 			throw new IOException("Directory does not exist: " + userDir);
@@ -124,12 +133,10 @@ public class Application {
 		
 		long now = System.currentTimeMillis();
 		DateFormat logDateFormat = DateFormat.getDateInstance(DateFormat.LONG);
-		log = new TextLogger(logDir + FILE_SEPARATOR + EVENT_LOG);
-		String message = "Logging started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).";
+		log = new PrintWriter(logDir + FILE_SEPARATOR + EVENT_LOG);
+		String message = "Application started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).";
 		Console.log(message);
-		log.message(message);
-		
-		logger = new DataLogger(logDir);
+		log.println(message);
 	}
 	
 	protected void setupSensors() throws IOException {
@@ -142,6 +149,11 @@ public class Application {
 	
 	private void setupADXL345() throws IOException {
 		Console.log("Setup ADXL345.");
+		
+		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
+		Console.log("Log: " + file);
+		adxl345log = new ADXL345OutputStream(new FileOutputStream(file));
+		
 		ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
@@ -150,8 +162,10 @@ public class Application {
 		adxl345.writeRange(ADXL345.ADXL345_RANGE_16G);
 		adxl345.writeFullResolution(true);
 		adxl345.writeRate(ADXL345.ADXL345_RATE_400);
-		sensors.accelerometer.setScalingFactor(adxl345.getScalingFactor());
-		logger.log(ADXL345_LOG, SCALING_FACTOR, sensors.accelerometer.getScalingFactor());
+		float scalingFactor = adxl345.getScalingFactor();
+		sensors.accelerometer.setScalingFactor(scalingFactor);
+		adxl345log.writeScalingFactor(scalingFactor);
+		Console.log("Scaling Factor: " + scalingFactor);
 		
 		ADXL345Device device = new ADXL345Device(adxl345);
 		device.setListener(new ADXL345Device.AccelerometerListener() {
@@ -161,17 +175,22 @@ public class Application {
 				sensors.accelerometer.setRawY(y);
 				sensors.accelerometer.setRawZ(z);
 				try {
-					logger.log(ADXL345_LOG, x, y, z);
-				} catch (FileNotFoundException e) {
+					adxl345log.writeValues(x, y, z);
+				} catch (IOException e) {
 					Console.error(e.getMessage());
 				}
 			}
 		});
-		manager.add(device, 100 /* Hz */);
+		manager.add(device, 250 /* Hz */);
 	}
 
 	private void setupITG3205() throws IOException, FileNotFoundException {
 		Console.log("Setup ITG3205.");
+		
+		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
+		Console.log("Log: " + file);
+		itg3205log = new ITG3205OutputStream(new FileOutputStream(file));
+		
 		ITG3205 itg3205 = new ITG3205(I2CBus.BUS_1);
 		itg3205.setup();
 		if (!itg3205.verifyDeviceID()) {
@@ -183,7 +202,7 @@ public class Application {
 		itg3205.writeDLPFBandwidth(ITG3205.ITG3205_DLPF_BW_256);
 		
 		sensors.gyroscope.setScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
-		logger.log(ITG3205_LOG, SCALING_FACTOR, sensors.gyroscope.getScalingFactor());
+		itg3205log.writeScalingFactor(sensors.gyroscope.getScalingFactor());
 		
 		ITG3205Device device = new ITG3205Device(itg3205);
 		device.setListener(new GyroscopeListener() {
@@ -193,18 +212,23 @@ public class Application {
 				sensors.gyroscope.setRawY(y);
 				sensors.gyroscope.setRawZ(z);
 				try {
-					logger.log(ITG3205_LOG, x, y, z);
-				} catch (FileNotFoundException e) {
+					itg3205log.writeValues(x, y, z);
+				} catch (IOException e) {
 					Console.error(e.getMessage());
 				}
 			}
 			
 		});
-		manager.add(device, 100 /* Hz */);
+		manager.add(device, 250 /* Hz */);
 	}
 	
 	private void setupMS5611() throws IOException {
 		Console.log("Setup MS5611.");
+		
+		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
+		Console.log("Log: " + file);
+		ms5611log = new MS5611OutputStream(new FileOutputStream(file));
+		
 		MS5611 ms5611 = new MS5611(I2CBus.BUS_1);
 		ms5611.setup();
 		
@@ -215,22 +239,32 @@ public class Application {
 				sensors.barometer.setRawTemperature(T);
 				sensors.barometer.setRawPressure(P);
 				try {
-					logger.log(MS5611_LOG, T, P);
-				} catch (FileNotFoundException e) {
+					ms5611log.writeValues(T, P);
+				} catch (IOException e) {
 					Console.error(e.getMessage());
 				}
 			}
 
 			@Override
 			public void onFault(Fault fault) {
-				Console.error("MS5611 error: " + fault);
+				try {
+					ms5611log.writeFault(fault.ordinal());
+				} catch (IOException e) {
+					Console.error(e.getMessage());
+				}
+				Console.error("MS5611 fault: " + fault);
 			}
 		});
-		manager.add(device, 100 /* Hz */);
+		
+		manager.add(device, 250 /* Hz */);
 	}
 
 	private void setupADS1115() throws IOException {
 		Console.log("Setup ADS1115.");
+		
+		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
+		Console.log("Log: " + file);
+		ads1115log = new ADS1115OutputStream(new FileOutputStream(file));
 		
 		ADS1115 ads1115 = new ADS1115(I2CBus.BUS_1);
 		ads1115.setup()
@@ -250,14 +284,10 @@ public class Application {
 		Console.log("ADS1115 timeout: " + timeout);
 		device.setListener(new ADS1115Device.AnalogListener() {
 			@Override
-			public void onValues(float a0, float a1, float a2, float a3) {
-				sensors.analog.setA0(a0);
-				sensors.analog.setA1(a1);
-				sensors.analog.setA2(a2);
-				sensors.analog.setA3(a3);
+			public void onValue(Channel channel, float value) {
 				try {
-					logger.log(ADS1115_LOG, a0, a1, a2, a3);
-				} catch (FileNotFoundException e) {
+					ads1115log.writeValue(channel.ordinal(), value);
+				} catch (IOException e) {
 					Console.error(e.getMessage());
 				}
 			}
@@ -268,11 +298,27 @@ public class Application {
 	
 	private void setupGPS() throws FileNotFoundException {
 		Console.log("Setup Adafruit Ultimate GPS.");
-//		FileInputStream in = new FileInputStream("/dev/ttyUSB0"); // USB
-		FileInputStream in = new FileInputStream("/dev/ttyAMA0"); // GPIO
+		
+//		String source = "/dev/ttyUSB0"; // USB
+		String source = "/dev/ttyAMA0"; // GPIO
+		Console.log("Source: " + source);
+		String file = logDir + FILE_SEPARATOR + GPS_LOG;
+		Console.log("Log: " + file);
+		
+		FileInputStream in = new FileInputStream(source);
 		gps = new AdafruitGPS(in);
-		gps.setOutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + GPS_LOG));
+		gps.setOutputStream(new FileOutputStream(file));
 		gps.setGPS(sensors.gps);
+		gps.getPositionProvider().addListener(new ProviderListener<PositionEvent>() {
+			@Override
+			public void providerUpdate(PositionEvent event) {
+				double latitude  = event.getPosition().getLatitude();
+				double longitude = event.getPosition().getLongitude();
+				double altitude  = event.getPosition().getAltitude();
+				sensors.gps.set(latitude, longitude, altitude);
+				// TODO send via radio
+			}
+		});
 	}
 	
 	protected void setupServer() throws IOException {
@@ -381,11 +427,27 @@ public class Application {
 				break;
 			case 'q':
 			case 'Q':
-				Console.log("Quitting.");
-				manager.clear();
-				System.exit(0);
+				shutdown();
+				break;
 			}
 		}
+	}
+
+	private void shutdown() {
+		Console.log("Shutting down.");
+		manager.clear();
+		
+		try {
+			adxl345log.close();
+			itg3205log.close();
+			ms5611log.close();
+			ads1115log.close();
+		} catch (IOException e) {
+			Console.error(e.getMessage());
+		}
+		log.close();
+		
+		System.exit(0);
 	}
 	
 }

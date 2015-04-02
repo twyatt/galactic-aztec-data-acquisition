@@ -6,10 +6,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import au.com.bytecode.opencsv.CSVWriter;
-import edu.sdsu.rocket.log2csv.ADS1115InputStream.ADS1115Reading;
-import edu.sdsu.rocket.log2csv.ADXL345InputStream.ADXL345Reading;
-import edu.sdsu.rocket.log2csv.ITG3205InputStream.ITG3205Reading;
-import edu.sdsu.rocket.log2csv.MS5611InputStream.MS5611Reading;
+import edu.sdsu.rocket.io.ADS1115InputStream;
+import edu.sdsu.rocket.io.ADXL345InputStream;
+import edu.sdsu.rocket.io.ITG3205InputStream;
+import edu.sdsu.rocket.io.MS5611InputStream;
+import edu.sdsu.rocket.io.ADS1115InputStream.ADS1115Reading;
+import edu.sdsu.rocket.io.ADXL345InputStream.ADXL345Reading;
+import edu.sdsu.rocket.io.ITG3205InputStream.ITG3205Reading;
+import edu.sdsu.rocket.io.MS5611InputStream.MS5611Reading;
 
 public class Converter {
 
@@ -25,7 +29,7 @@ public class Converter {
 			convertADS1115();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println(e.getMessage());
+			System.err.println("ADS1115: " + e.getMessage());
 		}
 		
 		System.out.print("Converting ADXL345 ... ");
@@ -33,7 +37,7 @@ public class Converter {
 			convertADXL345();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println(e.getMessage());
+			System.err.println("ADXL345: " + e.getMessage());
 		}
 		
 		System.out.print("Converting ITG3205 ... ");
@@ -41,7 +45,7 @@ public class Converter {
 			convertITG3205();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println(e.getMessage());
+			System.err.println("ITG3205: " + e.getMessage());
 		}
 		
 		System.out.print("Converting MS5611 ... ");
@@ -49,7 +53,7 @@ public class Converter {
 			convertMS5611();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println(e.getMessage());
+			System.err.println("MS5611: " + e.getMessage());
 		}
 	}
 
@@ -64,10 +68,10 @@ public class Converter {
 			while ((reading = in.readReading()) != null) {
 				String[] entries = new String[5];
 				entries[0] = String.valueOf(reading.timestamp);
-				entries[1] = String.valueOf(reading.values[0]); // a0
-				entries[2] = String.valueOf(reading.values[1]); // a1
-				entries[3] = String.valueOf(reading.values[2]); // a2
-				entries[4] = String.valueOf(reading.values[3]); // a3
+				entries[1] = Float.isNaN(reading.values[0]) ? "" : String.valueOf(reading.values[0]); // A0
+				entries[2] = Float.isNaN(reading.values[1]) ? "" : String.valueOf(reading.values[1]); // A1
+				entries[3] = Float.isNaN(reading.values[2]) ? "" : String.valueOf(reading.values[2]); // A2
+				entries[4] = Float.isNaN(reading.values[3]) ? "" : String.valueOf(reading.values[3]); // A3
 				writer.writeNext(entries);
 			}
 		} finally {

@@ -1,4 +1,4 @@
-package edu.sdsu.rocket.log2csv;
+package edu.sdsu.rocket.io;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -19,12 +19,16 @@ public class MS5611InputStream extends DataInputStream {
 		int type = 0;
 		while ((type = read()) != -1) {
 			switch (type) {
-			case 0: // sensor values
+			case MS5611OutputStream.SENSOR_VALUES:
 				MS5611Reading reading = new MS5611Reading();
 				reading.timestamp = readLong();
 				reading.values[0] = readInt();
 				reading.values[1] = readInt();
 				return reading;
+			case MS5611OutputStream.FAULT:
+				readLong(); // timestamp
+				System.err.println("Fault: " + readInt());
+				break;
 			default:
 				throw new IOException("Unsupported value type: " + type);
 			}

@@ -1,4 +1,4 @@
-package edu.sdsu.rocket.log2csv;
+package edu.sdsu.rocket.io;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -19,13 +19,13 @@ public class ADS1115InputStream extends DataInputStream {
 		int type = 0;
 		while ((type = read()) != -1) {
 			switch (type) {
-			case 0: // sensor values
+			case ADS1115OutputStream.SENSOR_VALUE:
 				ADS1115Reading reading = new ADS1115Reading();
 				reading.timestamp = readLong();
-				reading.values[0] = readFloat();
-				reading.values[1] = readFloat();
-				reading.values[2] = readFloat();
-				reading.values[3] = readFloat();
+				int channel = readInt();
+				for (int i = 0; i < 4; i++) {
+					reading.values[i] = channel == i ? readFloat() : Float.NaN;
+				}
 				return reading;
 			default:
 				throw new IOException("Unsupported value type: " + type);

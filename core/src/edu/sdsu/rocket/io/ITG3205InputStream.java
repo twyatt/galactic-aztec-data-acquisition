@@ -1,4 +1,4 @@
-package edu.sdsu.rocket.log2csv;
+package edu.sdsu.rocket.io;
 
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -22,7 +22,7 @@ public class ITG3205InputStream extends DataInputStream {
 		int type = 0;
 		while ((type = read()) != -1) {
 			switch (type) {
-			case 0: // sensor values
+			case ITG3205OutputStream.SENSOR_VALUES:
 				ITG3205Reading reading = new ITG3205Reading();
 				reading.timestamp = readLong();
 				reading.values[0] = readShort();
@@ -30,7 +30,8 @@ public class ITG3205InputStream extends DataInputStream {
 				reading.values[2] = readShort();
 				reading.scalingFactor = scalingFactor;
 				return reading;
-			case 1: // scaling factor
+			case ITG3205OutputStream.SCALING_FACTOR:
+				readLong(); // timestamp
 				scalingFactor = readFloat();
 				break;
 			default:

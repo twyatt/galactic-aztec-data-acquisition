@@ -6,16 +6,14 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Writer;
 
-import edu.sdsu.rocket.models.GPS;
-import edu.sdsu.rocket.server.Console;
 import net.sf.marineapi.nmea.event.SentenceEvent;
 import net.sf.marineapi.nmea.event.SentenceListener;
 import net.sf.marineapi.nmea.io.SentenceReader;
 import net.sf.marineapi.provider.PositionProvider;
-import net.sf.marineapi.provider.event.PositionEvent;
-import net.sf.marineapi.provider.event.ProviderListener;
+import edu.sdsu.rocket.models.GPS;
+import edu.sdsu.rocket.server.Console;
 
-public class AdafruitGPS implements SentenceListener, ProviderListener<PositionEvent> {
+public class AdafruitGPS implements SentenceListener {
 
 	private static final String LINE_SEPARATOR = System.getProperty("line.separator");
 	
@@ -23,22 +21,23 @@ public class AdafruitGPS implements SentenceListener, ProviderListener<PositionE
 
 	private GPS gps;
 
+	private PositionProvider provider;
+
 	public AdafruitGPS(InputStream in) {
 		SentenceReader reader = new SentenceReader(in);
 		reader.addSentenceListener(this);
 		
-		PositionProvider provider = new PositionProvider(reader);
-		provider.addListener(this);
+		provider = new PositionProvider(reader);
 		
 		reader.start();
 	}
 	
+	public PositionProvider getPositionProvider() {
+		return provider;
+	}
+	
 	public void setOutputStream(OutputStream out) {
-		if (out == null) {
-			writer = null;
-		} else {
-			writer = new PrintWriter(out);
-		}
+		writer = out == null ? null : new PrintWriter(out);
 	}
 	
 	public void setGPS(GPS gps) {
@@ -71,14 +70,6 @@ public class AdafruitGPS implements SentenceListener, ProviderListener<PositionE
 //				e.printStackTrace();
 			}
 		}
-	}
-
-	@Override
-	public void providerUpdate(PositionEvent event) {
-		double latitude  = event.getPosition().getLatitude();
-		double longitude = event.getPosition().getLongitude();
-		double altitude  = event.getPosition().getAltitude();
-		gps.set(latitude, longitude, altitude);
 	}
 
 }

@@ -6,8 +6,12 @@ import edu.sdsu.rocket.server.DeviceManager.Device;
 
 public class ADS1115Device implements Device {
 	
+	public enum Channel {
+		A0, A1, A2, A3,
+	}
+	
 	public interface AnalogListener {
-		public void onValues(float a0, float a1, float a2, float a3);
+		public void onValue(Channel channel, float value);
 	}
 	
 	private static final int CHANNELS = 4;
@@ -16,8 +20,6 @@ public class ADS1115Device implements Device {
 	
 	private AnalogListener listener;
 	private long timeout;
-	
-	private final float[] values = new float[CHANNELS];
 	
 	private final ADS1115 ads1115;
 
@@ -70,12 +72,28 @@ public class ADS1115Device implements Device {
 				}
 			}
 			
-			values[i] = ads1115.readMillivolts();
+			float value = ads1115.readMillivolts();
+			
+			if (listener != null) {
+				Channel channel;
+				switch (i) {
+				case 1:
+					channel = Channel.A1;
+					break;
+				case 2:
+					channel = Channel.A2;
+					break;
+				case 3:
+					channel = Channel.A3;
+					break;
+				default:
+					channel = Channel.A0;
+					break;
+				}
+				listener.onValue(channel, value);
+			}
 		}
 		
-		if (listener != null) {
-			listener.onValues(values[0], values[1], values[2], values[3]);
-		}
 	}
 
 }
