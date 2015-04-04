@@ -1,4 +1,4 @@
-package edu.sdsu.rocket.server;
+package edu.sdsu.rocket.helpers;
 
 public class Console {
 	
@@ -8,6 +8,10 @@ public class Console {
 	
 	public static void log(String string) {
 		System.out.println(string);
+	}
+	
+	public static void error(Throwable t) {
+		error(t.getMessage());
 	}
 	
 	public static void error(String message) {

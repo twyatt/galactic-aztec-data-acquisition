@@ -10,8 +10,8 @@ import net.sf.marineapi.nmea.event.SentenceEvent;
 import net.sf.marineapi.nmea.event.SentenceListener;
 import net.sf.marineapi.nmea.io.SentenceReader;
 import net.sf.marineapi.provider.PositionProvider;
+import edu.sdsu.rocket.helpers.Console;
 import edu.sdsu.rocket.models.GPS;
-import edu.sdsu.rocket.server.Console;
 
 public class AdafruitGPS implements SentenceListener {
 

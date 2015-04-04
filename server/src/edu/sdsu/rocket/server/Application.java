@@ -21,12 +21,17 @@ import net.sf.marineapi.provider.event.ProviderListener;
 
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
+import com.pi4j.io.serial.Serial;
+import com.pi4j.io.serial.SerialConfig;
+import com.pi4j.io.serial.SerialFactory;
 
+import edu.sdsu.rocket.helpers.Console;
 import edu.sdsu.rocket.io.ADS1115OutputStream;
 import edu.sdsu.rocket.io.ADXL345OutputStream;
 import edu.sdsu.rocket.io.ITG3205OutputStream;
 import edu.sdsu.rocket.io.MS5611OutputStream;
 import edu.sdsu.rocket.io.Message;
+import edu.sdsu.rocket.io.MessageHandler;
 import edu.sdsu.rocket.models.Analog;
 import edu.sdsu.rocket.models.Barometer;
 import edu.sdsu.rocket.models.GPS;
@@ -43,6 +48,7 @@ import edu.sdsu.rocket.server.devices.ITG3205Device.GyroscopeListener;
 import edu.sdsu.rocket.server.devices.MS5611;
 import edu.sdsu.rocket.server.devices.MS5611Device;
 import edu.sdsu.rocket.server.devices.MS5611Device.Fault;
+import edu.sdsu.rocket.server.devices.XTend900Device;
 import edu.sdsu.rocket.server.io.DatagramServer;
 
 public class Application {
@@ -73,11 +79,8 @@ public class Application {
 	private final Reader input = new InputStreamReader(System.in);
 	protected final Sensors sensors;
 	
+	private XTend900Device radio;
 	private AdafruitGPS gps;
-	
-	private long start = System.nanoTime();
-	private long loops;
-	private long frequency; // Hz
 	
 	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 	private final Vector3 tmpVec = new Vector3();
@@ -92,30 +95,76 @@ public class Application {
 	
 	public void setup() throws IOException {
 		setupLogging();
+//		setupRadio();
 		setupSensors();
 		setupServer();
 	}
-	
+
 	public void loop() throws IOException {
-		loopServer();
-		loopInput();
-		
-		try {
-			Thread.sleep(10L);
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		}
-		
-		loops++;
-		long time = System.nanoTime();
-		if (time - start > 1000000000) {
-			frequency = loops;
-			loops = 0;
-			start = time;
+		switch (input.read()) {
+		case '?':
+			Console.log();
+			Console.log("?: help");
+			Console.log("t: cpu temperature");
+			Console.log("f: loop frequency");
+			Console.log("a: accelerometer");
+			Console.log("y: gyroscope");
+			Console.log("b: barometer");
+			Console.log("c: analog");
+			Console.log("g: gps");
+			Console.log("q: quit");
+			Console.log();
+			break;
+		case 't':
+		case 'T':
+			try {
+				float tempC = Pi.getCpuTemperature();
+				float tempF = tempC * 9f / 5f + 32f;
+				Console.log("CPU: " + tempC + " C, " + tempF + " F");
+			} catch (NumberFormatException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+			break;
+		case 'f':
+		case 'F':
+			Console.log(manager.toString());
+			break;
+		case 'a':
+		case 'A':
+			sensors.accelerometer.get(tmpVec);
+			Console.log(tmpVec.scl(9.8f) + " m/s^2");
+			break;
+		case 'b':
+		case 'B':
+			Barometer barometer = sensors.barometer;
+			Console.log(barometer.getTemperature() + " C, " + barometer.getPressure() + " mbar");
+			break;
+		case 'y':
+		case 'Y':
+			sensors.gyroscope.get(tmpVec);
+			Console.log(tmpVec + " deg/s");
+			break;
+		case 'c':
+		case 'C':
+			Analog a = sensors.analog;
+			Console.log("A0=" + a.getA0() + " mV,\tA1=" + a.getA1() + " mV,\tA2=" + a.getA2() + " mV,\tA3=" + a.getA3() + " mV");
+			break;
+		case 'g':
+		case 'G':
+			GPS gps = sensors.gps;
+			Console.log("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
+			break;
+		case 'q':
+		case 'Q':
+			shutdown();
+			break;
 		}
 	}
 	
 	protected void setupLogging() throws IOException {
+		Console.log("Setup Logging.");
+		
 		File userDir = new File(System.getProperty("user.dir", "~"));
 		if (!userDir.exists()) {
 			throw new IOException("Directory does not exist: " + userDir);
@@ -137,6 +186,16 @@ public class Application {
 		String message = "Application started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).";
 		Console.log(message);
 		log.println(message);
+	}
+	
+	private void setupRadio() throws IOException {
+		Console.log("Setup XTend900.");
+		Serial serial = SerialFactory.createInstance();
+		SerialConfig config = new SerialConfig();
+		serial.open(config);
+		
+		radio = new XTend900Device(serial, sensors);
+		manager.add(radio, 10 /* Hz */);
 	}
 	
 	protected void setupSensors() throws IOException {
@@ -324,7 +383,23 @@ public class Application {
 	protected void setupServer() throws IOException {
 		Console.log("Setup server.");
 		server = new DatagramServer(SERVER_PORT);
-		server.start();
+		server.start(new MessageHandler.MessageListener() {
+			@Override
+			public void onMessageReceived(Message message) {
+				try {
+					switch (message.id) {
+					case Message.PING:
+						// FIXME implement
+						break;
+					case Message.SENSOR:
+						sendSensorData(message.address, message.number);
+						break;
+					}
+				} catch (IOException e) {
+					Console.error(e.getMessage());
+				}
+			}
+		});
 	}
 
 	/**
@@ -349,94 +424,17 @@ public class Application {
 			socket.send(packet);
 		}
 	}
-	
-	protected void loopServer() {
-		Message message = server.read();
-		if (message != null) {
-			try {
-				switch (message.id) {
-				case Message.PING:
-					// FIXME implement
-					break;
-				case Message.SENSOR:
-					sendSensorData(message.address, message.number);
-					break;
-				}
-			} catch (IOException e) {
-				Console.error(e.getMessage());
-			}
-		}
-	}
-
-	protected void loopInput() throws IOException {
-		if (input.ready()) {
-			int c = input.read();
-			switch (c) {
-			case '?':
-				Console.log();
-				Console.log("?: help");
-				Console.log("t: cpu temperature");
-				Console.log("f: loop frequency");
-				Console.log("a: accelerometer");
-				Console.log("y: gyroscope");
-				Console.log("b: barometer");
-				Console.log("c: analog");
-				Console.log("g: gps");
-				Console.log("q: quit");
-				Console.log();
-				break;
-			case 't':
-			case 'T':
-				try {
-					float tempC = Pi.getCpuTemperature();
-					float tempF = tempC * 9f / 5f + 32f;
-					Console.log("CPU: " + tempC + " C, " + tempF + " F");
-				} catch (NumberFormatException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				break;
-			case 'f':
-			case 'F':
-				Console.log("Main: " + frequency + " Hz, " + manager);
-				break;
-			case 'a':
-			case 'A':
-				sensors.accelerometer.get(tmpVec);
-				Console.log(tmpVec.scl(9.8f) + " m/s^2");
-				break;
-			case 'b':
-			case 'B':
-				Barometer barometer = sensors.barometer;
-				Console.log(barometer.getTemperature() + " C, " + barometer.getPressure() + " mbar");
-				break;
-			case 'y':
-			case 'Y':
-				sensors.gyroscope.get(tmpVec);
-				Console.log(tmpVec + " deg/s");
-				break;
-			case 'c':
-			case 'C':
-				Analog a = sensors.analog;
-				Console.log("A0=" + a.getA0() + " mV,\tA1=" + a.getA1() + " mV,\tA2=" + a.getA2() + " mV,\tA3=" + a.getA3() + " mV");
-				break;
-			case 'g':
-			case 'G':
-				GPS gps = sensors.gps;
-				Console.log("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
-				break;
-			case 'q':
-			case 'Q':
-				shutdown();
-				break;
-			}
-		}
-	}
 
 	private void shutdown() {
 		Console.log("Shutting down.");
+		
+		Console.log("Stopping server.");
+		server.stop();
+		
+		Console.log("Stopping device manager.");
 		manager.clear();
 		
+		Console.log("Closing log streams.");
 		try {
 			adxl345log.close();
 			itg3205log.close();

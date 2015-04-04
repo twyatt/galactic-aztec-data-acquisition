@@ -2,22 +2,16 @@ package edu.sdsu.rocket.server.io;
 
 import java.net.DatagramSocket;
 import java.net.SocketException;
-import java.util.Queue;
 
-import org.apache.commons.collections4.queue.CircularFifoQueue;
-
-import edu.sdsu.rocket.io.Message;
+import edu.sdsu.rocket.helpers.Console;
 import edu.sdsu.rocket.io.MessageHandler;
-import edu.sdsu.rocket.io.PacketRunnable;
 import edu.sdsu.rocket.io.MessageHandler.MessageListener;
-import edu.sdsu.rocket.server.Console;
+import edu.sdsu.rocket.io.PacketRunnable;
 
-public class DatagramServer implements MessageListener {
+public class DatagramServer {
 	
 	private DatagramSocket socket;
 	private Thread thread;
-	
-	Queue<Message> fifo = new CircularFifoQueue<Message>(16);
 	
 	private final int port;
 
@@ -29,11 +23,11 @@ public class DatagramServer implements MessageListener {
 		return socket;
 	}
 	
-	public void start() throws SocketException {
+	public void start(MessageListener listener) throws SocketException {
 		socket = new DatagramSocket(port);
 		Console.log("Listing on port " + port + ".");
 		
-		thread = new Thread(new PacketRunnable(socket, new MessageHandler(this)));
+		thread = new InterruptableUDPThread(new PacketRunnable(socket, new MessageHandler(listener)));
 		thread.setName("DatagramServer");
 		thread.start();
 	}
@@ -49,14 +43,19 @@ public class DatagramServer implements MessageListener {
 		}
 	}
 	
-	// non-blocking, returns null if no messages available
-	public synchronized Message read() {
-		return fifo.poll();
-	}
-	
-	@Override
-	public synchronized void onMessageReceived(Message message) {
-		fifo.add(message);
+	// http://stackoverflow.com/a/4671080/196486
+	public class InterruptableUDPThread extends Thread {
+		
+		public InterruptableUDPThread(Runnable runnable) {
+			super(runnable);
+		}
+
+		@Override
+		public void interrupt() {
+			super.interrupt();
+			socket.close();
+		}
+		
 	}
 	
 }
