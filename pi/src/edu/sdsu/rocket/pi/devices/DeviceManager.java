@@ -10,7 +10,7 @@ import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
 public class DeviceManager {
 	
 	public interface Device {
-		public void loop() throws IOException;
+		public void loop() throws IOException, InterruptedException;
 	}
 	
 	private List<DeviceThread> threads = new ArrayList<DeviceThread>();
@@ -88,7 +88,7 @@ public class DeviceManager {
 		}
 		
 		@Override
-		public void loop() {
+		public void loop() throws InterruptedException {
 			try {
 				device.loop();
 			} catch (IOException e) {

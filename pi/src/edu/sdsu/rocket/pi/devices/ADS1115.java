@@ -5,7 +5,30 @@ import java.io.IOException;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
-public class ADS1115 {
+import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
+
+public class ADS1115 implements Device {
+	
+	public enum Channel {
+		A0, A1, A2, A3,
+	}
+	
+	public interface AnalogListener {
+		public void onValue(Channel channel, float value);
+	}
+	private AnalogListener listener;
+	public ADS1115 setListener(AnalogListener listener) {
+		this.listener = listener;
+		return this;
+	}
+	
+	private static final int CHANNELS = 4;
+	private static final boolean DEBUG = true;
+	
+	private long timeout;
+	public void setTimeout(long timeout) {
+		this.timeout = timeout;
+	}
 	
 	/**
 	 * Table 5. ADDR Pin Connection and Corresponding Slave Address, pg 17
@@ -474,6 +497,47 @@ public class ADS1115 {
 		int size = 2;
 		i2c.read(address, BUFFER, offset, size);
 		return (BUFFER[0] << 8) | (BUFFER[1] & 0xFF);
+	}
+	
+	@Override
+	public void loop() throws IOException, InterruptedException {
+		for (int i = 0; i < CHANNELS; i++) {
+			long start = System.nanoTime();
+			setSingleEnded(i).begin();
+			
+//			Thread.sleep(0, 250000); // 0.25 ms
+			
+			// wait for conversion
+			while (true) {
+				if (!isPerformingConversion()) {
+					break;
+				} else if (System.nanoTime() - start > timeout) {
+					if (DEBUG) System.out.print("!");
+					break;
+				}
+			}
+			
+			float value = readMillivolts();
+			
+			if (listener != null) {
+				Channel channel;
+				switch (i) {
+				case 1:
+					channel = Channel.A1;
+					break;
+				case 2:
+					channel = Channel.A2;
+					break;
+				case 3:
+					channel = Channel.A3;
+					break;
+				default:
+					channel = Channel.A0;
+					break;
+				}
+				listener.onValue(channel, value);
+			}
+		}
 	}
 	
 }

@@ -6,7 +6,19 @@ import com.i2cdevlib.I2Cdev;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
-public class ITG3205 {
+import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
+
+public class ITG3205 implements Device {
+	
+	public interface GyroscopeListener {
+		public void onValues(short x, short y, short z);
+	}
+	private GyroscopeListener listener;
+	public void setListener(GyroscopeListener listener) {
+		this.listener = listener;
+	}
+
+	private final short[] values = new short[3]; // X, Y, Z
 	
 	/**
 	 * Address of the ITG3205 with the AL0 pin tied to GND (low).
@@ -440,6 +452,15 @@ public class ITG3205 {
 		raw[0] = (short) ((BUFFER[0] << 8) | (BUFFER[1] & 0xFF)); // x
 		raw[1] = (short) ((BUFFER[2] << 8) | (BUFFER[3] & 0xFF)); // y
 		raw[2] = (short) ((BUFFER[4] << 8) | (BUFFER[5] & 0xFF)); // z
+	}
+	
+	@Override
+	public void loop() throws IOException {
+		readRawRotations(values);
+		
+		if (listener != null) {
+			listener.onValues(values[0], values[1], values[2]);
+		}
 	}
 	
 }

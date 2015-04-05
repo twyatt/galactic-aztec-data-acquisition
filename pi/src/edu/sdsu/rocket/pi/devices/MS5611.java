@@ -5,6 +5,8 @@ import java.io.IOException;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
+import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
+
 /**
  * Barometer
  * 
@@ -21,7 +23,28 @@ import com.pi4j.io.i2c.I2CFactory;
  * 
  * http://www.embeddedadventures.com/barometric_pressure_sensor_module_mod-1009.html
  */
-public class MS5611 {
+public class MS5611 implements Device {
+	
+	public interface BarometerListener {
+		public void onValues(int T, int P);
+		public void onFault(Fault fault);
+	}
+	
+	public enum Fault {
+		D1,
+		D2,
+	}
+	
+	private long start = 0L;
+	private int wait = 0;
+	private long adc;
+	private long D1 = 0, D2 = 0;
+	private int i = 0;
+	
+	private BarometerListener listener;
+	public void setListener(BarometerListener listener) {
+		this.listener = listener;
+	}
 	
 	/**
 	 * Address of the MS5611 with the CSB pin tied to GND (low).
@@ -326,6 +349,44 @@ public class MS5611 {
 		long OFF  = (long) (OFF_T1  + dT * TCO);
 		long SENS = (long) (SENS_T1 + dT * TCS);
 		return (int) ((D1 * SENS / 2097152f /* 2^21 */ - OFF) / 32768f /* 2^15 */);
+	}
+	
+	@Override
+	public void loop() throws IOException {
+		if (i == 0) {
+			i++;
+			wait = writeConversion(MS5611.MS5611_CONVERT_D2_OSR_256);
+			start = System.nanoTime();
+		} else if (i == 1 && System.nanoTime() - start > wait) {
+			i++;
+			if ((adc = readADC()) == 0) {
+				if (listener != null) {
+					listener.onFault(Fault.D2);
+				}
+				return;
+			} else {
+				D2 = adc;
+			}
+		} else if (i == 2) {
+			i++;
+			wait = writeConversion(MS5611.MS5611_CONVERT_D1_OSR_256);
+			start = System.nanoTime();
+		} else if (i == 3 && System.nanoTime() - start > wait) {
+			i = 0;
+			if ((adc = readADC()) == 0) {
+				if (listener != null) {
+					listener.onFault(Fault.D1);
+				}
+				return;
+			} else {
+				D1 = adc;
+				int T = getTemperature(D2);
+				int P = getPressure(D1, D2);
+				if (listener != null) {
+					listener.onValues(T, P);
+				}
+			}
+		}
 	}
 	
 }

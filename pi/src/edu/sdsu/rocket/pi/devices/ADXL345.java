@@ -6,7 +6,19 @@ import com.i2cdevlib.I2Cdev;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
-public class ADXL345 {
+import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
+
+public class ADXL345 implements Device {
+	
+	public interface AccelerometerListener {
+		public void onValues(short x, short y, short z);
+	}
+	private AccelerometerListener listener;
+	public void setListener(AccelerometerListener listener) {
+		this.listener = listener;
+	}
+
+	private final short[] values = new short[3]; // X, Y, Z
 	
 	/**
 	 * Address of the ADXL345 with the ALT pin tied to GND (low).
@@ -541,6 +553,15 @@ public class ADXL345 {
     	float gRange = 4f * (float) Math.pow(2, range);
     	float bitRange = (float) Math.pow(2, bits);
     	return gRange / bitRange;
+	}
+    
+    @Override
+	public void loop() throws IOException {
+		readRawAcceleration(values);
+		
+		if (listener != null) {
+			listener.onValues(values[0], values[1], values[2]);
+		}
 	}
 	
 }

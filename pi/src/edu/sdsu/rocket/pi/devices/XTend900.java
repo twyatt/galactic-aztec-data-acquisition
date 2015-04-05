@@ -14,7 +14,7 @@ import edu.sdsu.rocket.core.helpers.Console;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
 
-public class XTend900Device implements Device {
+public class XTend900 implements Device {
 	
 	public enum Command {
 		ENTER_AT_COMMAND_MODE   ("+++"),
@@ -122,7 +122,7 @@ public class XTend900Device implements Device {
 	private final GpioPinDigitalOutput txLed;
 	private final GpioPinDigitalOutput shdn;
 
-	public XTend900Device(Serial serial, Sensors sensors) {
+	public XTend900(Serial serial, Sensors sensors) {
 		this.serial = serial;
 		this.sensors = sensors;
 		
@@ -134,7 +134,7 @@ public class XTend900Device implements Device {
 		txLed.pulse(1000L);
 	}
 	
-	public XTend900Device enterATCommandMode() throws InterruptedException, IllegalStateException, IOException {
+	public XTend900 enterATCommandMode() throws InterruptedException, IllegalStateException, IOException {
 		Thread.sleep(1000L);
 		String cmd = Command.ENTER_AT_COMMAND_MODE.text;
 		Console.log(cmd + " [Enter AT Command Mode]");
@@ -143,91 +143,91 @@ public class XTend900Device implements Device {
 		return this;
 	}
 	
-	public XTend900Device exitATCommandMode() throws IllegalStateException, IOException {
+	public XTend900 exitATCommandMode() throws IllegalStateException, IOException {
 		String cmd = Command.EXIT_AT_COMMAND_MODE.text;
 		Console.log(cmd + " [Exit AT Command Mode]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device requestBoardVoltage() throws IllegalStateException, IOException {
+	public XTend900 requestBoardVoltage() throws IllegalStateException, IOException {
 		String cmd = Command.BOARD_VOLTAGE.text;
 		Console.log(cmd + " [Board Voltage]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device requestReceivedSignalStrength() throws IllegalStateException, IOException {
+	public XTend900 requestReceivedSignalStrength() throws IllegalStateException, IOException {
 		String cmd = Command.RECEIVED_SIGNAL_STRENGTH.text;
 		Console.log(cmd + " [Received Signal Strength]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device requestHardwareVersion() throws IllegalStateException, IOException {
+	public XTend900 requestHardwareVersion() throws IllegalStateException, IOException {
 		String cmd = Command.HARDWARE_VERSION.text;
 		Console.log(cmd + " [Hardware Version]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device requestBoardTemperature() throws IllegalStateException, IOException {
+	public XTend900 requestBoardTemperature() throws IllegalStateException, IOException {
 		String cmd = Command.BOARD_TEMPERATURE.text;
 		Console.log(cmd + " [Board Temperature]");
 		write(cmd);
 		return this;
 	}
 
-	public XTend900Device writeNumberBase(NumberBase base) throws IllegalStateException, IOException {
+	public XTend900 writeNumberBase(NumberBase base) throws IllegalStateException, IOException {
 		String cmd = Command.NUMBER_BASE.text + base.parameter;
 		Console.log(cmd + " [Number Base: " + base + "]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeInterfaceDataRate(InterfaceDataRate rate) throws IllegalStateException, IOException {
+	public XTend900 writeInterfaceDataRate(InterfaceDataRate rate) throws IllegalStateException, IOException {
 		String cmd = Command.INTERFACE_DATA_RATE.text + rate.paramter;
 		Console.log(cmd + " [Interface Data Rate: " + rate + "]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeRFDataRate(RFDataRate rate) throws IllegalStateException, IOException {
+	public XTend900 writeRFDataRate(RFDataRate rate) throws IllegalStateException, IOException {
 		String cmd = Command.RF_DATA_RATE.text + rate.parameter;
 		Console.log(cmd + " [RF Data Rate: " + rate + "]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeGPO2Configuration(GPO2Configuration config) throws IllegalStateException, IOException {
+	public XTend900 writeGPO2Configuration(GPO2Configuration config) throws IllegalStateException, IOException {
 		String cmd = Command.GPO2_CONFIGURATION.text + config.parameter;
 		Console.log(cmd + " [GPO2 Configuration: " + config + "]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeTXPowerLevel(TXPowerLevel level) throws IllegalStateException, IOException {
+	public XTend900 writeTXPowerLevel(TXPowerLevel level) throws IllegalStateException, IOException {
 		String cmd = Command.TX_POWER_LEVEL.text + level.parameter;
 		Console.log(cmd + " [TX Power Level: " + level + "]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeAutosetMY() throws IllegalStateException, IOException {
+	public XTend900 writeAutosetMY() throws IllegalStateException, IOException {
 		String cmd = Command.AUTOSET_MY.text;
 		Console.log(cmd + " [Auto-set MY]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeDestinationAddress(String address) throws IllegalStateException, IOException {
+	public XTend900 writeDestinationAddress(String address) throws IllegalStateException, IOException {
 		String cmd = Command.DESTINATION_ADDRESS.text + address;
 		Console.log(cmd + " [Destination Address: " + address + "]");
 		write(cmd);
 		return this;
 	}
 	
-	public XTend900Device writeTransmitOnly(TransmitOnly txOnly) throws IllegalStateException, IOException {
+	public XTend900 writeTransmitOnly(TransmitOnly txOnly) throws IllegalStateException, IOException {
 		String cmd = Command.TRANSMIT_ONLY.text + txOnly.parameter;
 		Console.log(cmd + " [Transmit Only: " + txOnly + "]");
 		write(cmd);

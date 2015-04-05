@@ -21,7 +21,7 @@ public class TestApplication extends Application {
 	}
 	
 	@Override
-	protected void setupSensors() throws IOException {
+	protected void setupDevices() throws IOException {
 		Console.log("Setup ADS1115.");
 		ads1115log = new ADS1115OutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + ADS1115_LOG));
 		

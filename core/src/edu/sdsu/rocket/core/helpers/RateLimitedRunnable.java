@@ -51,22 +51,23 @@ public abstract class RateLimitedRunnable implements Runnable {
 	@Override
 	public final void run() {
 		while (!Thread.currentThread().isInterrupted()) {
-			loop();
-			
-			if (sleep_ms != 0 || sleep_ns != 0) {
-				try {
+			try {
+				loop();
+				
+				if (sleep_ms != 0 || sleep_ns != 0) {
 					if (sleep_ns == 0) {
 						Thread.sleep(sleep_ms);
 					} else {
 						Thread.sleep(sleep_ms, (int) sleep_ns);
 					}
-				} catch (InterruptedException e) {
-					return;
 				}
+			} catch (InterruptedException e) {
+				Console.error(e);
+				return;
 			}
 		}
 	}
 	
-	public abstract void loop();
+	public abstract void loop() throws InterruptedException;
 
 }
