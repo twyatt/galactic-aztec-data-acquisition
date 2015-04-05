@@ -1,0 +1,45 @@
+apply plugin: 'java'
+
+sourceCompatibility = 1.7
+targetCompatibility = 1.7
+sourceSets.main.java.srcDirs = [ "src/" ]
+
+project.ext.mainClassName = "edu.sdsu.rocket.radio.Launcher"
+
+task run(dependsOn: classes, type: JavaExec) {
+    main = project.mainClassName
+    classpath = sourceSets.main.runtimeClasspath
+    standardInput = System.in
+    ignoreExitValue = true
+}
+
+task dist(type: Jar) {
+    from files(sourceSets.main.output.classesDir)
+    from files(sourceSets.main.output.resourcesDir)
+    from {configurations.compile.collect {zipTree(it)}}
+ 
+    manifest {
+        attributes 'Main-Class': project.mainClassName
+    }
+}
+
+dist.dependsOn classes
+
+eclipse {
+    project {
+        name = appName + "-radio"
+    }
+}
+
+jar {
+    baseName = 'sdsu-rocket-radio'
+    version = '1.0'
+    
+    manifest {
+        attributes 'Main-Class': mainClassName
+    }
+}
+
+tasks.eclipse.doLast {
+    delete ".project"
+}

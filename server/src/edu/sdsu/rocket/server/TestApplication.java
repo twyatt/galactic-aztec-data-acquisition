@@ -5,12 +5,12 @@ import java.io.IOException;
 
 import com.badlogic.gdx.math.MathUtils;
 
-import edu.sdsu.rocket.helpers.Console;
-import edu.sdsu.rocket.io.ADS1115OutputStream;
-import edu.sdsu.rocket.io.ADXL345OutputStream;
-import edu.sdsu.rocket.io.ITG3205OutputStream;
-import edu.sdsu.rocket.io.MS5611OutputStream;
-import edu.sdsu.rocket.models.Sensors;
+import edu.sdsu.rocket.core.helpers.Console;
+import edu.sdsu.rocket.core.io.ADS1115OutputStream;
+import edu.sdsu.rocket.core.io.ADXL345OutputStream;
+import edu.sdsu.rocket.core.io.ITG3205OutputStream;
+import edu.sdsu.rocket.core.io.MS5611OutputStream;
+import edu.sdsu.rocket.core.models.Sensors;
 
 public class TestApplication extends Application {
 

@@ -2,7 +2,7 @@ package edu.sdsu.rocket.server;
 
 import java.io.IOException;
 
-import edu.sdsu.rocket.models.Sensors;
+import edu.sdsu.rocket.core.models.Sensors;
 
 public class Launcher {
 	

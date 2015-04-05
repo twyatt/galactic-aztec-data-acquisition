@@ -1,5 +1,6 @@
 include 'core'
+include 'pi'
+include 'radio'
 include 'server'
 include 'data'
 include 'log2csv'
-

@@ -29,22 +29,35 @@ project(":core") {
     }
 }
 
-project(":server") {
+project(":pi") {
     dependencies {
         compile project(":core");
         
         compile('com.pi4j:pi4j-core:1.1-SNAPSHOT') {
-	        exclude module: 'pi4j-native'
-	    }
-	    compile('com.pi4j:pi4j-device:1.1-SNAPSHOT') {
-	        exclude module: 'pi4j-native'
-	    }
-	    compile('com.pi4j:pi4j-gpio-extension:1.1-SNAPSHOT') {
-	        exclude module: 'pi4j-native'
-	    }
+            exclude module: 'pi4j-native'
+        }
+        compile('com.pi4j:pi4j-device:1.1-SNAPSHOT') {
+            exclude module: 'pi4j-native'
+        }
+        compile('com.pi4j:pi4j-gpio-extension:1.1-SNAPSHOT') {
+            exclude module: 'pi4j-native'
+        }
+        
+        compile "net.sf.marineapi:marineapi:0.8.1"
+    }
+}
+
+project(":server") {
+    dependencies {
+        compile project(":pi");
 	    
 	    compile "org.apache.commons:commons-collections4:4.0"
-	    compile "net.sf.marineapi:marineapi:0.8.1"
+    }
+}
+
+project(":radio") {
+    dependencies {
+        compile project(":pi");
     }
 }
 

@@ -26,12 +26,11 @@ import org.controlsfx.control.action.Action;
 import org.controlsfx.dialog.Dialog;
 import org.controlsfx.dialog.Dialogs;
 
-import client.io.DatagramClient;
-
 import com.badlogic.gdx.math.Vector3;
 
-import edu.sdsu.rocket.models.Pressures;
-import edu.sdsu.rocket.models.Sensors;
+import edu.sdsu.rocket.core.io.DatagramClient;
+import edu.sdsu.rocket.core.models.Pressures;
+import edu.sdsu.rocket.core.models.Sensors;
 import eu.hansolo.enzo.common.Section;
 import eu.hansolo.enzo.gauge.Gauge;
 import eu.hansolo.enzo.gauge.GaugeBuilder;

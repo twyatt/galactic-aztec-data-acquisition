@@ -6,14 +6,14 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 import au.com.bytecode.opencsv.CSVWriter;
-import edu.sdsu.rocket.io.ADS1115InputStream;
-import edu.sdsu.rocket.io.ADXL345InputStream;
-import edu.sdsu.rocket.io.ITG3205InputStream;
-import edu.sdsu.rocket.io.MS5611InputStream;
-import edu.sdsu.rocket.io.ADS1115InputStream.ADS1115Reading;
-import edu.sdsu.rocket.io.ADXL345InputStream.ADXL345Reading;
-import edu.sdsu.rocket.io.ITG3205InputStream.ITG3205Reading;
-import edu.sdsu.rocket.io.MS5611InputStream.MS5611Reading;
+import edu.sdsu.rocket.core.io.ADS1115InputStream;
+import edu.sdsu.rocket.core.io.ADXL345InputStream;
+import edu.sdsu.rocket.core.io.ITG3205InputStream;
+import edu.sdsu.rocket.core.io.MS5611InputStream;
+import edu.sdsu.rocket.core.io.ADS1115InputStream.ADS1115Reading;
+import edu.sdsu.rocket.core.io.ADXL345InputStream.ADXL345Reading;
+import edu.sdsu.rocket.core.io.ITG3205InputStream.ITG3205Reading;
+import edu.sdsu.rocket.core.io.MS5611InputStream.MS5611Reading;
 
 public class Converter {
 

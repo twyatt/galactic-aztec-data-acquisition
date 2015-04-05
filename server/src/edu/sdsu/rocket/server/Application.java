@@ -28,34 +28,36 @@ import com.pi4j.io.serial.SerialDataEvent;
 import com.pi4j.io.serial.SerialDataEventListener;
 import com.pi4j.io.serial.SerialFactory;
 
-import edu.sdsu.rocket.helpers.Console;
-import edu.sdsu.rocket.io.ADS1115OutputStream;
-import edu.sdsu.rocket.io.ADXL345OutputStream;
-import edu.sdsu.rocket.io.ITG3205OutputStream;
-import edu.sdsu.rocket.io.MS5611OutputStream;
-import edu.sdsu.rocket.io.Message;
-import edu.sdsu.rocket.io.MessageHandler;
-import edu.sdsu.rocket.models.Analog;
-import edu.sdsu.rocket.models.Barometer;
-import edu.sdsu.rocket.models.GPS;
-import edu.sdsu.rocket.models.Sensors;
-import edu.sdsu.rocket.server.devices.ADS1115;
-import edu.sdsu.rocket.server.devices.ADS1115Device;
-import edu.sdsu.rocket.server.devices.ADS1115Device.Channel;
-import edu.sdsu.rocket.server.devices.ADXL345;
-import edu.sdsu.rocket.server.devices.ADXL345Device;
-import edu.sdsu.rocket.server.devices.AdafruitGPS;
-import edu.sdsu.rocket.server.devices.ITG3205;
-import edu.sdsu.rocket.server.devices.ITG3205Device;
-import edu.sdsu.rocket.server.devices.ITG3205Device.GyroscopeListener;
-import edu.sdsu.rocket.server.devices.MS5611;
-import edu.sdsu.rocket.server.devices.MS5611Device;
-import edu.sdsu.rocket.server.devices.MS5611Device.Fault;
-import edu.sdsu.rocket.server.devices.XTend900Device;
-import edu.sdsu.rocket.server.devices.XTend900Device.NumberBase;
-import edu.sdsu.rocket.server.devices.XTend900Device.RFDataRate;
-import edu.sdsu.rocket.server.devices.XTend900Device.TXPowerLevel;
-import edu.sdsu.rocket.server.io.DatagramServer;
+import edu.sdsu.rocket.core.helpers.Console;
+import edu.sdsu.rocket.core.io.ADS1115OutputStream;
+import edu.sdsu.rocket.core.io.ADXL345OutputStream;
+import edu.sdsu.rocket.core.io.DatagramServer;
+import edu.sdsu.rocket.core.io.ITG3205OutputStream;
+import edu.sdsu.rocket.core.io.MS5611OutputStream;
+import edu.sdsu.rocket.core.io.Message;
+import edu.sdsu.rocket.core.io.MessageHandler;
+import edu.sdsu.rocket.core.models.Analog;
+import edu.sdsu.rocket.core.models.Barometer;
+import edu.sdsu.rocket.core.models.GPS;
+import edu.sdsu.rocket.core.models.Sensors;
+import edu.sdsu.rocket.pi.Pi;
+import edu.sdsu.rocket.pi.devices.ADS1115;
+import edu.sdsu.rocket.pi.devices.ADS1115Device;
+import edu.sdsu.rocket.pi.devices.ADS1115Device.Channel;
+import edu.sdsu.rocket.pi.devices.ADXL345;
+import edu.sdsu.rocket.pi.devices.ADXL345Device;
+import edu.sdsu.rocket.pi.devices.AdafruitGPS;
+import edu.sdsu.rocket.pi.devices.DeviceManager;
+import edu.sdsu.rocket.pi.devices.ITG3205;
+import edu.sdsu.rocket.pi.devices.ITG3205Device;
+import edu.sdsu.rocket.pi.devices.ITG3205Device.GyroscopeListener;
+import edu.sdsu.rocket.pi.devices.MS5611;
+import edu.sdsu.rocket.pi.devices.MS5611Device;
+import edu.sdsu.rocket.pi.devices.MS5611Device.Fault;
+import edu.sdsu.rocket.pi.devices.XTend900Device;
+import edu.sdsu.rocket.pi.devices.XTend900Device.NumberBase;
+import edu.sdsu.rocket.pi.devices.XTend900Device.RFDataRate;
+import edu.sdsu.rocket.pi.devices.XTend900Device.TXPowerLevel;
 
 public class Application {
 	
@@ -129,8 +131,7 @@ public class Application {
 				float tempF = tempC * 9f / 5f + 32f;
 				Console.log("CPU: " + tempC + " C, " + tempF + " F");
 			} catch (NumberFormatException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
+				Console.error(e);
 			}
 			break;
 		case 'f':
@@ -426,7 +427,6 @@ public class Application {
 		FileInputStream in = new FileInputStream(source);
 		gps = new AdafruitGPS(in);
 		gps.setOutputStream(new FileOutputStream(file));
-		gps.setGPS(sensors.gps);
 		gps.getPositionProvider().addListener(new ProviderListener<PositionEvent>() {
 			@Override
 			public void providerUpdate(PositionEvent event) {
