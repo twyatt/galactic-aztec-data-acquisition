@@ -14,17 +14,15 @@ public class DeviceManager {
 	}
 	
 	private List<DeviceThread> threads = new ArrayList<DeviceThread>();
-
-	public void add(Device device) {
-		add(device, 0);
-	}
 	
-	public void add(Device device, long throttle) {
-		DeviceThread thread = new DeviceThread(new DeviceRunnable(device, throttle));
+	public DeviceRunnable add(Device device) {
+		DeviceRunnable runnable = new DeviceRunnable(device);
+		DeviceThread thread = new DeviceThread(runnable);
 		thread.setName(device.getClass().getSimpleName());
 		threads.add(thread);
 		Console.log("Starting " + thread.getName() + " thread.");
 		thread.start();
+		return runnable;
 	}
 	
 	public void clear() {
@@ -63,7 +61,9 @@ public class DeviceManager {
 		
 	}
 	
-	private class DeviceRunnable extends RateLimitedRunnable {
+	public class DeviceRunnable extends RateLimitedRunnable {
+		
+		private static final long NANOSECONDS_PER_SECOND = 1000000000L;
 		
 		long start = System.nanoTime();
 		long frequency;
@@ -73,9 +73,17 @@ public class DeviceManager {
 		
 		final Device device;
 
-		public DeviceRunnable(Device device, long throttle) {
+		public DeviceRunnable(Device device) {
 			if (device == null) throw new NullPointerException();
 			this.device = device;
+		}
+		
+		/**
+		 * Set the throttle of the runnable loop.
+		 * 
+		 * @param throttle (Hz)
+		 */
+		public void setThrottle(long throttle) {
 			this.throttle = throttle;
 		}
 		
@@ -89,13 +97,13 @@ public class DeviceManager {
 			
 			loops++;
 			long time = System.nanoTime();
-			if (time - start > 1000000000) {
+			if (time - start > NANOSECONDS_PER_SECOND) {
 				if (throttle != 0) {
-					long dt = (time - start) / loops - getSleep(); // actual time per loop
+					long dt = (time - start) / loops - getSleepNanoseconds(); // actual time per loop
 					long t = (time - start) / throttle; // target time per loop
 					long sleep = t - dt;
 					if (sleep < 0) sleep = 0;
-					setSleep(sleep);
+					setSleepNanoseconds(sleep);
 				}
 				
 				frequency = loops;

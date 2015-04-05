@@ -21,8 +21,11 @@ import net.sf.marineapi.provider.event.ProviderListener;
 
 import com.badlogic.gdx.math.Vector3;
 import com.pi4j.io.i2c.I2CBus;
+import com.pi4j.io.serial.Baud;
 import com.pi4j.io.serial.Serial;
 import com.pi4j.io.serial.SerialConfig;
+import com.pi4j.io.serial.SerialDataEvent;
+import com.pi4j.io.serial.SerialDataEventListener;
 import com.pi4j.io.serial.SerialFactory;
 
 import edu.sdsu.rocket.helpers.Console;
@@ -49,6 +52,9 @@ import edu.sdsu.rocket.server.devices.MS5611;
 import edu.sdsu.rocket.server.devices.MS5611Device;
 import edu.sdsu.rocket.server.devices.MS5611Device.Fault;
 import edu.sdsu.rocket.server.devices.XTend900Device;
+import edu.sdsu.rocket.server.devices.XTend900Device.NumberBase;
+import edu.sdsu.rocket.server.devices.XTend900Device.RFDataRate;
+import edu.sdsu.rocket.server.devices.XTend900Device.TXPowerLevel;
 import edu.sdsu.rocket.server.io.DatagramServer;
 
 public class Application {
@@ -95,7 +101,7 @@ public class Application {
 	
 	public void setup() throws IOException {
 		setupLogging();
-//		setupRadio();
+		setupRadio();
 		setupSensors();
 		setupServer();
 	}
@@ -112,6 +118,7 @@ public class Application {
 			Console.log("b: barometer");
 			Console.log("c: analog");
 			Console.log("g: gps");
+			Console.log("r: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
 			Console.log("q: quit");
 			Console.log();
 			break;
@@ -155,6 +162,13 @@ public class Application {
 			GPS gps = sensors.gps;
 			Console.log("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
 			break;
+		case 'r':
+		case 'R':
+			if (radio != null) {
+				radio.toggle();
+				Console.log("Radio is now " + (radio.isOn() ? "ON" : "OFF") + ".");
+			}
+			break;
 		case 'q':
 		case 'Q':
 			shutdown();
@@ -192,10 +206,51 @@ public class Application {
 		Console.log("Setup XTend900.");
 		Serial serial = SerialFactory.createInstance();
 		SerialConfig config = new SerialConfig();
+		config.baud(Baud._9600);
 		serial.open(config);
 		
+		// setup serial listener to see command responses
+		SerialDataEventListener listener = new SerialDataEventListener() {
+			@Override
+			public void dataReceived(SerialDataEvent event) {
+				try {
+					Console.log(event.getAsciiString());
+				} catch (IOException e) {
+					Console.error(e);
+				}
+			}
+		};
+		serial.addListener(listener);
+		
 		radio = new XTend900Device(serial, sensors);
-		manager.add(radio, 10 /* Hz */);
+		try {
+			radio
+				.enterATCommandMode()
+				.writeNumberBase(NumberBase.DEFAULT_WITH_UNITS)
+				.requestBoardVoltage()
+				.requestHardwareVersion()
+				.writeRFDataRate(RFDataRate.BAUD_115200)
+				.writeTXPowerLevel(TXPowerLevel.TX_1000mW)
+				
+				// point-to-multipoint: remotes (pg 44)
+				.writeAutosetMY()
+				.writeDestinationAddress("0") // 0x00
+				
+				.exitATCommandMode()
+				;
+		} catch (IllegalStateException e) {
+			Console.error(e);
+			throw new IOException(e);
+		} catch (InterruptedException e) {
+			Console.error(e);
+			throw new IOException(e);
+		}
+		
+		// clean up serial listener
+		serial.removeListener(listener);
+		
+		manager.add(radio)
+			.setSleep(100L /* ms */); // 100 ms = 10 Hz
 	}
 	
 	protected void setupSensors() throws IOException {
@@ -240,7 +295,8 @@ public class Application {
 				}
 			}
 		});
-		manager.add(device, 250 /* Hz */);
+		manager.add(device)
+			.setThrottle(100 /* Hz */);
 	}
 
 	private void setupITG3205() throws IOException, FileNotFoundException {
@@ -278,7 +334,8 @@ public class Application {
 			}
 			
 		});
-		manager.add(device, 250 /* Hz */);
+		manager.add(device)
+			.setThrottle(100 /* Hz */);
 	}
 	
 	private void setupMS5611() throws IOException {
@@ -315,7 +372,8 @@ public class Application {
 			}
 		});
 		
-		manager.add(device, 250 /* Hz */);
+		manager.add(device)
+			.setThrottle(100 /* Hz */);
 	}
 
 	private void setupADS1115() throws IOException {
@@ -331,9 +389,9 @@ public class Application {
 			.setMode(ADS1115.Mode.MODE_SINGLE)
 			.setRate(ADS1115.Rate.DR_860SPS)
 			.setComparator(ADS1115.Comparator.COMP_MODE_HYSTERESIS)
-			.setPolarity(ADS1115.Polarity.COMP_POL_ACTIVE_HIGH)
-			.setLatching(ADS1115.Latching.COMP_LAT_LATCHING)
-			.setQueue(ADS1115.Queue.COMP_QUE_1_CONVERSION)
+//			.setPolarity(ADS1115.Polarity.COMP_POL_ACTIVE_HIGH)
+//			.setLatching(ADS1115.Latching.COMP_LAT_LATCHING)
+//			.setQueue(ADS1115.Queue.COMP_QUE_1_CONVERSION)
 			;
 		int sps = ads1115.getRate().getSamplesPerSecond();
 		
@@ -344,6 +402,7 @@ public class Application {
 		device.setListener(new ADS1115Device.AnalogListener() {
 			@Override
 			public void onValue(Channel channel, float value) {
+				sensors.analog.set(channel.ordinal(), value);
 				try {
 					ads1115log.writeValue(channel.ordinal(), value);
 				} catch (IOException e) {
@@ -358,8 +417,8 @@ public class Application {
 	private void setupGPS() throws FileNotFoundException {
 		Console.log("Setup Adafruit Ultimate GPS.");
 		
-//		String source = "/dev/ttyUSB0"; // USB
-		String source = "/dev/ttyAMA0"; // GPIO
+		String source = "/dev/ttyUSB0"; // USB
+//		String source = "/dev/ttyAMA0"; // GPIO
 		Console.log("Source: " + source);
 		String file = logDir + FILE_SEPARATOR + GPS_LOG;
 		Console.log("Log: " + file);
@@ -375,7 +434,6 @@ public class Application {
 				double longitude = event.getPosition().getLongitude();
 				double altitude  = event.getPosition().getAltitude();
 				sensors.gps.set(latitude, longitude, altitude);
-				// TODO send via radio
 			}
 		});
 	}
