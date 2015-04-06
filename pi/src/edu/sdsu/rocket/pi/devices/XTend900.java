@@ -138,7 +138,7 @@ public class XTend900 implements Device {
 		Thread.sleep(1000L);
 		String cmd = Command.ENTER_AT_COMMAND_MODE.text;
 		Console.log(cmd + " [Enter AT Command Mode]");
-		serial.write(cmd);
+		writeln(cmd);
 		Thread.sleep(1000L);
 		return this;
 	}
@@ -146,114 +146,117 @@ public class XTend900 implements Device {
 	public XTend900 exitATCommandMode() throws IllegalStateException, IOException {
 		String cmd = Command.EXIT_AT_COMMAND_MODE.text;
 		Console.log(cmd + " [Exit AT Command Mode]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestBoardVoltage() throws IllegalStateException, IOException {
 		String cmd = Command.BOARD_VOLTAGE.text;
 		Console.log(cmd + " [Board Voltage]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestReceivedSignalStrength() throws IllegalStateException, IOException {
 		String cmd = Command.RECEIVED_SIGNAL_STRENGTH.text;
 		Console.log(cmd + " [Received Signal Strength]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestHardwareVersion() throws IllegalStateException, IOException {
 		String cmd = Command.HARDWARE_VERSION.text;
 		Console.log(cmd + " [Hardware Version]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestBoardTemperature() throws IllegalStateException, IOException {
 		String cmd = Command.BOARD_TEMPERATURE.text;
 		Console.log(cmd + " [Board Temperature]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 
 	public XTend900 writeNumberBase(NumberBase base) throws IllegalStateException, IOException {
 		String cmd = Command.NUMBER_BASE.text + base.parameter;
 		Console.log(cmd + " [Number Base: " + base + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeInterfaceDataRate(InterfaceDataRate rate) throws IllegalStateException, IOException {
 		String cmd = Command.INTERFACE_DATA_RATE.text + rate.paramter;
 		Console.log(cmd + " [Interface Data Rate: " + rate + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeRFDataRate(RFDataRate rate) throws IllegalStateException, IOException {
 		String cmd = Command.RF_DATA_RATE.text + rate.parameter;
 		Console.log(cmd + " [RF Data Rate: " + rate + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeGPO2Configuration(GPO2Configuration config) throws IllegalStateException, IOException {
 		String cmd = Command.GPO2_CONFIGURATION.text + config.parameter;
 		Console.log(cmd + " [GPO2 Configuration: " + config + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeTXPowerLevel(TXPowerLevel level) throws IllegalStateException, IOException {
 		String cmd = Command.TX_POWER_LEVEL.text + level.parameter;
 		Console.log(cmd + " [TX Power Level: " + level + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeAutosetMY() throws IllegalStateException, IOException {
 		String cmd = Command.AUTOSET_MY.text;
 		Console.log(cmd + " [Auto-set MY]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeDestinationAddress(String address) throws IllegalStateException, IOException {
 		String cmd = Command.DESTINATION_ADDRESS.text + address;
 		Console.log(cmd + " [Destination Address: " + address + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeTransmitOnly(TransmitOnly txOnly) throws IllegalStateException, IOException {
 		String cmd = Command.TRANSMIT_ONLY.text + txOnly.parameter;
 		Console.log(cmd + " [Transmit Only: " + txOnly + "]");
-		write(cmd);
+		writeln(cmd);
 		return this;
 	}
 	
-	public void turnOn() {
+	public XTend900 turnOn() {
 		shdn.high();
+		return this;
 	}
 	
-	public void turnOff() {
+	public XTend900 turnOff() {
 		shdn.low();
+		return this;
 	}
 	
-	public void toggle() {
+	public XTend900 toggle() {
 		shdn.toggle();
+		return this;
 	}
 	
 	public boolean isOn() {
 		return shdn.isHigh();
 	}
 	
-	private void write(String string) throws IllegalStateException, IOException {
-		serial.write(string + "\n");
+	private void writeln(String string) throws IllegalStateException, IOException {
+		serial.writeln(string);
 		try {
-			Thread.sleep(250L);
+			Thread.sleep(2000L);
 		} catch (InterruptedException e) {
 			Console.error(e);
 		}

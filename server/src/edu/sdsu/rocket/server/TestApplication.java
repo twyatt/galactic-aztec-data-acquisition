@@ -23,20 +23,20 @@ public class TestApplication extends Application {
 	@Override
 	protected void setupDevices() throws IOException {
 		Console.log("Setup ADS1115.");
-		ads1115log = new ADS1115OutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + ADS1115_LOG));
+		ads1115log = new ADS1115OutputStream(new FileOutputStream(sdLogDir + FILE_SEPARATOR + ADS1115_LOG));
 		
 		Console.log("Setup ADX345.");
-		adxl345log = new ADXL345OutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + ADXL345_LOG));
+		adxl345log = new ADXL345OutputStream(new FileOutputStream(sdLogDir + FILE_SEPARATOR + ADXL345_LOG));
 		sensors.accelerometer.setScalingFactor(0.001f);
 		adxl345log.writeScalingFactor(0.001f);
 		
 		Console.log("Setup ITG3205.");
-		itg3205log = new ITG3205OutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + ITG3205_LOG));
+		itg3205log = new ITG3205OutputStream(new FileOutputStream(sdLogDir + FILE_SEPARATOR + ITG3205_LOG));
 		sensors.gyroscope.setScalingFactor(1f);
 		itg3205log.writeScalingFactor(1f);
 		
 		Console.log("Setup MS5611.");
-		ms5611log = new MS5611OutputStream(new FileOutputStream(logDir + FILE_SEPARATOR + MS5611_LOG));
+		ms5611log = new MS5611OutputStream(new FileOutputStream(sdLogDir + FILE_SEPARATOR + MS5611_LOG));
 		
 		new Thread(new Runnable() {
 			@Override

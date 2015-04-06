@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.Reader;
 import java.text.DateFormat;
@@ -29,6 +30,7 @@ import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
 import edu.sdsu.rocket.core.io.MS5611OutputStream;
+import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
 import edu.sdsu.rocket.core.models.Analog;
 import edu.sdsu.rocket.core.models.Barometer;
 import edu.sdsu.rocket.core.models.GPS;
@@ -54,6 +56,9 @@ public class Application {
 	
 	private static final int SERVER_PORT = 4444;
 	
+	private static final boolean USB_LOGGING_ENABLED = true;
+	private static final String USB_LOG_DIR = "/mnt/blackbox/logs";
+	
 	protected static final String EVENT_LOG   = "event.log";
 	protected static final String ADXL345_LOG = "adxl345.log";
 	protected static final String ITG3205_LOG = "itg3205.log";
@@ -61,7 +66,8 @@ public class Application {
 	protected static final String ADS1115_LOG = "ads1115.log";
 	protected static final String GPS_LOG     = "gps.txt";
 	
-	protected File logDir;
+	protected File sdLogDir;
+	protected File usbLogDir;
 	protected PrintWriter log;
 	protected ADXL345OutputStream adxl345log;
 	protected ITG3205OutputStream itg3205log;
@@ -97,31 +103,42 @@ public class Application {
 	protected void setupLogging() throws IOException {
 		Console.log("Setup Logging.");
 		
+		DateFormat dirDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
+		String timestamp = dirDateFormat.format(new Date());
+		
 		File userDir = new File(System.getProperty("user.dir", "~"));
 		if (!userDir.exists()) {
 			throw new IOException("Directory does not exist: " + userDir);
 		}
 		
-		DateFormat dirDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-		String timestamp = dirDateFormat.format(new Date());
+		sdLogDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
+		Console.log("SD Log Directory: " + sdLogDir);
+		if (!sdLogDir.exists()) {
+			Console.log("mkdir " + sdLogDir);
+			sdLogDir.mkdirs();
+		}
 		
-		logDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
-		Console.log("Log Directory: " + logDir);
-		if (!logDir.exists()) {
-			Console.log("mkdir " + logDir);
-			logDir.mkdirs();
+		if (USB_LOGGING_ENABLED) {
+			File usbDir = new File(USB_LOG_DIR);
+			if (!usbDir.exists()) {
+				throw new IOException("USB log directory does not exist: " + usbDir);
+			}
+			usbLogDir = new File(USB_LOG_DIR + FILE_SEPARATOR + timestamp);
+			if (!usbLogDir.exists()) {
+				Console.log("mkdir " + usbLogDir);
+				usbLogDir.mkdirs();
+			}
 		}
 		
 		long now = System.currentTimeMillis();
 		DateFormat logDateFormat = DateFormat.getDateInstance(DateFormat.LONG);
-		log = new PrintWriter(logDir + FILE_SEPARATOR + EVENT_LOG);
+		log = new PrintWriter(sdLogDir + FILE_SEPARATOR + EVENT_LOG);
 		String message = "Application started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).";
 		Console.log(message);
 		log.println(message);
 	}
 	
 	protected void setupDevices() throws IOException {
-		setupRadio();
 		setupAcceleromter();
 		setupGyroscope();
 		setupBarometer();
@@ -131,10 +148,10 @@ public class Application {
 	
 	private void setupRadio() throws IOException {
 		Console.log("Setup Radio [XTend900].");
+		
 		Serial serial = SerialFactory.createInstance();
 		SerialConfig config = new SerialConfig();
 		config.baud(Baud._9600);
-		serial.open(config);
 		
 		// setup serial listener to see command responses
 		SerialDataEventListener listener = new SerialDataEventListener() {
@@ -148,10 +165,12 @@ public class Application {
 			}
 		};
 		serial.addListener(listener);
+		serial.open(config);
 		
 		radio = new XTend900(serial, sensors);
 		try {
 			radio
+				.turnOn()
 				.enterATCommandMode()
 				.writeNumberBase(NumberBase.DEFAULT_WITH_UNITS)
 				.requestBoardVoltage()
@@ -164,6 +183,7 @@ public class Application {
 				.writeDestinationAddress("0") // 0x00
 				
 				.exitATCommandMode()
+				.turnOff()
 				;
 		} catch (IllegalStateException e) {
 			Console.error(e);
@@ -183,9 +203,15 @@ public class Application {
 	private void setupAcceleromter() throws IOException {
 		Console.log("Setup Accelerometer [ADXL345].");
 		
-		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
-		Console.log("Log: " + file);
-		adxl345log = new ADXL345OutputStream(new FileOutputStream(file));
+		String sdFile = sdLogDir + FILE_SEPARATOR + ADXL345_LOG;
+		Console.log("SD Log: " + sdFile);
+		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
+		if (usbLogDir != null) {
+			String usbFile = usbLogDir + FILE_SEPARATOR + ADXL345_LOG;
+			Console.log("USB Log: " + usbFile);
+			out.add(new FileOutputStream(usbFile));
+		}
+		adxl345log = new ADXL345OutputStream(out);
 		
 		ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
 		adxl345.setup();
@@ -220,9 +246,15 @@ public class Application {
 	private void setupGyroscope() throws IOException, FileNotFoundException {
 		Console.log("Setup Gyroscope [ITG3205].");
 		
-		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
-		Console.log("Log: " + file);
-		itg3205log = new ITG3205OutputStream(new FileOutputStream(file));
+		String sdFile = sdLogDir + FILE_SEPARATOR + ITG3205_LOG;
+		Console.log("SD Log: " + sdFile);
+		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
+		if (usbLogDir != null) {
+			String usbFile = usbLogDir + FILE_SEPARATOR + ITG3205_LOG;
+			Console.log("USB Log: " + usbFile);
+			out.add(new FileOutputStream(usbFile));
+		}
+		itg3205log = new ITG3205OutputStream(out);
 		
 		ITG3205 itg3205 = new ITG3205(I2CBus.BUS_1);
 		itg3205.setup();
@@ -258,9 +290,15 @@ public class Application {
 	private void setupBarometer() throws IOException {
 		Console.log("Setup Barometer [MS5611].");
 		
-		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
-		Console.log("Log: " + file);
-		ms5611log = new MS5611OutputStream(new FileOutputStream(file));
+		String sdFile = sdLogDir + FILE_SEPARATOR + MS5611_LOG;
+		Console.log("SD Log: " + sdFile);
+		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
+		if (usbLogDir != null) {
+			String usbFile = usbLogDir + FILE_SEPARATOR + MS5611_LOG;
+			Console.log("USB Log: " + usbFile);
+			out.add(new FileOutputStream(usbFile));
+		}
+		ms5611log = new MS5611OutputStream(out);
 		
 		MS5611 ms5611 = new MS5611(I2CBus.BUS_1);
 		ms5611.setup();
@@ -295,9 +333,15 @@ public class Application {
 	private void setupADC() throws IOException {
 		Console.log("Setup ADC [ADS1115].");
 		
-		String file = logDir + FILE_SEPARATOR + ADXL345_LOG;
-		Console.log("Log: " + file);
-		ads1115log = new ADS1115OutputStream(new FileOutputStream(file));
+		String sdFile = sdLogDir + FILE_SEPARATOR + ADS1115_LOG;
+		Console.log("SD Log: " + sdFile);
+		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
+		if (usbLogDir != null) {
+			String usbFile = usbLogDir + FILE_SEPARATOR + ADS1115_LOG;
+			Console.log("USB Log: " + usbFile);
+			out.add(new FileOutputStream(usbFile));
+		}
+		ads1115log = new ADS1115OutputStream(out);
 		
 		ADS1115 ads1115 = new ADS1115(I2CBus.BUS_1);
 		ads1115.setup()
@@ -335,12 +379,19 @@ public class Application {
 		String source = "/dev/ttyUSB0"; // USB
 //		String source = "/dev/ttyAMA0"; // GPIO
 		Console.log("Source: " + source);
-		String file = logDir + FILE_SEPARATOR + GPS_LOG;
-		Console.log("Log: " + file);
+		
+		String sdFile = sdLogDir + FILE_SEPARATOR + GPS_LOG;
+		Console.log("SD Log: " + sdFile);
+		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
+		if (usbLogDir != null) {
+			String usbFile = usbLogDir + FILE_SEPARATOR + GPS_LOG;
+			Console.log("USB Log: " + usbFile);
+			out.add(new FileOutputStream(usbFile));
+		}
 		
 		FileInputStream in = new FileInputStream(source);
 		gps = new AdafruitGPS(in);
-		gps.setOutputStream(new FileOutputStream(file));
+		gps.setOutputStream(out);
 		gps.getPositionProvider().addListener(new ProviderListener<PositionEvent>() {
 			@Override
 			public void providerUpdate(PositionEvent event) {
@@ -369,6 +420,7 @@ public class Application {
 			Console.log("b: barometer");
 			Console.log("c: analog");
 			Console.log("g: gps");
+			Console.log("s: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
 			Console.log("r: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
 			Console.log("q: quit");
 			Console.log();
@@ -411,6 +463,14 @@ public class Application {
 		case 'G':
 			GPS gps = sensors.gps;
 			Console.log("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
+			break;
+		case 's':
+		case 'S':
+			if (radio == null) {
+				setupRadio();
+			} else {
+				Console.log("Radio already started.");
+			}
 			break;
 		case 'r':
 		case 'R':

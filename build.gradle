@@ -64,6 +64,10 @@ project(":radio") {
 project(":data") {
     dependencies {
         compile project(":core");
+        
+        compile "eu.hansolo.enzo:Enzo:0.2.2"
+        compile "org.controlsfx:controlsfx:8.20.8"
+        compile "com.lynden:GMapsFX:1.1.1"
     }
 }
 
