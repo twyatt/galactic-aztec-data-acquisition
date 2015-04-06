@@ -8,6 +8,21 @@ public abstract class RateLimitedRunnable implements Runnable {
 
 	private long sleep_ms;
 	private long sleep_ns;
+
+	private Object lock = new Object();
+	private boolean isPaused;
+	
+	/**
+	 * Sets the running frequency.
+	 * 
+	 * @param frequency Hz
+	 */
+	public void setFrequency(float frequency) {
+		if (frequency == 0f) {
+			throw new IllegalArgumentException("Frequency cannot be zero.");
+		}
+		setSleep(Math.round(1000f / frequency));
+	}
 	
 	/**
 	 * Sets the duration runnable sleeps per loop (in milliseconds).
@@ -48,6 +63,25 @@ public abstract class RateLimitedRunnable implements Runnable {
 		return sleep_ms * NANOSECONDS_PER_MILLISECOND + sleep_ns;
 	}
 	
+	public void pause() {
+		synchronized (lock) {
+			isPaused = true;
+		}
+	}
+	
+	public void resume() {
+		if (isPaused) {
+			synchronized (lock) {
+				isPaused = false;
+				lock.notifyAll();
+			}
+		}
+	}
+	
+	public boolean isPaused() {
+		return isPaused;
+	}
+	
 	@Override
 	public final void run() {
 		while (!Thread.currentThread().isInterrupted()) {
@@ -59,6 +93,12 @@ public abstract class RateLimitedRunnable implements Runnable {
 						Thread.sleep(sleep_ms);
 					} else {
 						Thread.sleep(sleep_ms, (int) sleep_ns);
+					}
+				}
+				
+				synchronized (lock) {
+					while (isPaused) {
+						lock.wait();
 					}
 				}
 			} catch (InterruptedException e) {

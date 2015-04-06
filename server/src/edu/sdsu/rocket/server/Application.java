@@ -8,10 +8,6 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.SocketAddress;
-import java.nio.ByteBuffer;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -31,15 +27,13 @@ import com.pi4j.io.serial.SerialFactory;
 import edu.sdsu.rocket.core.helpers.Console;
 import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
-import edu.sdsu.rocket.core.io.DatagramServer;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
 import edu.sdsu.rocket.core.io.MS5611OutputStream;
-import edu.sdsu.rocket.core.io.Message;
-import edu.sdsu.rocket.core.io.MessageHandler;
 import edu.sdsu.rocket.core.models.Analog;
 import edu.sdsu.rocket.core.models.Barometer;
 import edu.sdsu.rocket.core.models.GPS;
 import edu.sdsu.rocket.core.models.Sensors;
+import edu.sdsu.rocket.core.net.SensorServer;
 import edu.sdsu.rocket.pi.Pi;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
@@ -59,7 +53,6 @@ public class Application {
 	private static final long NANOSECONDS_PER_SECOND = 1000000000L;
 	
 	private static final int SERVER_PORT = 4444;
-	private static final int BUFFER_SIZE = 128; // bytes
 	
 	protected static final String EVENT_LOG   = "event.log";
 	protected static final String ADXL345_LOG = "adxl345.log";
@@ -76,15 +69,14 @@ public class Application {
 	protected ADS1115OutputStream ads1115log;
 	
 	private final DeviceManager manager = new DeviceManager();
-	private DatagramServer server;
-	
 	private final Reader input = new InputStreamReader(System.in);
+	
 	protected final Sensors sensors;
+	private final SensorServer server;
 	
 	private XTend900 radio;
 	private AdafruitGPS gps;
 	
-	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
 	private final Vector3 tmpVec = new Vector3();
 	
 	public Application(Sensors sensors) {
@@ -93,6 +85,7 @@ public class Application {
 			throw new NullPointerException();
 		}
 		this.sensors = sensors;
+		this.server = new SensorServer(sensors);
 	}
 	
 	public void setup() throws IOException {
@@ -361,24 +354,7 @@ public class Application {
 	
 	protected void setupServer() throws IOException {
 		Console.log("Setup server.");
-		server = new DatagramServer(SERVER_PORT);
-		server.start(new MessageHandler.MessageListener() {
-			@Override
-			public void onMessageReceived(Message message) {
-				try {
-					switch (message.id) {
-					case Message.PING:
-						// FIXME implement
-						break;
-					case Message.SENSOR:
-						sendSensorData(message.address, message.number);
-						break;
-					}
-				} catch (IOException e) {
-					Console.error(e.getMessage());
-				}
-			}
-		});
+		server.start(SERVER_PORT);
 	}
 	
 	public void loop() throws IOException {
@@ -450,29 +426,6 @@ public class Application {
 		}
 	}
 
-	/**
-	 * Sends current sensor data to specified address.
-	 * 
-	 * @param address
-	 * @param number 
-	 * @throws IOException 
-	 */
-	private void sendSensorData(SocketAddress address, int number) throws IOException {
-		DatagramSocket socket = server.getSocket();
-		if (socket != null) {
-			buffer.clear();
-			buffer.putInt(number);
-			buffer.put(Message.SENSOR);
-			sensors.toByteBuffer(buffer);
-			
-			byte[] buf = buffer.array();
-			int length = buffer.position();
-			DatagramPacket packet = new DatagramPacket(buf, length, address);
-			
-			socket.send(packet);
-		}
-	}
-	
 	private void shutdown() {
 		Console.log("Shutting down.");
 		

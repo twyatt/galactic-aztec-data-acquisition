@@ -1,4 +1,4 @@
-package edu.sdsu.rocket.core.io;
+package edu.sdsu.rocket.core.net;
 
 import java.io.IOException;
 import java.net.DatagramPacket;
@@ -6,26 +6,26 @@ import java.net.DatagramSocket;
 
 import edu.sdsu.rocket.core.helpers.Console;
 
-public class PacketRunnable implements Runnable {
+public class DatagramPacketRunnable implements Runnable {
 	
 	// http://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure
 	private static final int DEFAULT_PACKET_SIZE = 65527;
 	
 	private final DatagramSocket socket;
 	private final int packetSize;
-	private final PacketListener listener;
 
-	public interface PacketListener {
-		public void onPacketReceived(DatagramPacket packet);
+	private DatagramPacketListener listener;
+	
+	public DatagramPacketRunnable(DatagramSocket socket) {
+		this(socket, DEFAULT_PACKET_SIZE);
 	}
 	
-	public PacketRunnable(DatagramSocket socket, PacketListener listener) {
-		this(socket, DEFAULT_PACKET_SIZE, listener);
-	}
-	
-	public PacketRunnable(DatagramSocket socket, int packetSize, PacketListener listener) {
+	public DatagramPacketRunnable(DatagramSocket socket, int packetSize) {
 		this.socket = socket;
 		this.packetSize = packetSize;
+	}
+	
+	public void setListener(DatagramPacketListener listener) {
 		this.listener = listener;
 	}
 	
@@ -37,7 +37,9 @@ public class PacketRunnable implements Runnable {
 		while (!Thread.currentThread().isInterrupted()) {
 			try {
 				socket.receive(packet);
-				listener.onPacketReceived(packet);
+				if (listener != null) {
+					listener.onPacketReceived(packet);
+				}
 			} catch (IOException e) {
 				Console.error(e);
 				

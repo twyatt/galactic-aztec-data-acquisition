@@ -1,4 +1,4 @@
-package edu.sdsu.rocket.core.io;
+package edu.sdsu.rocket.core.net;
 
 import java.net.SocketAddress;
 

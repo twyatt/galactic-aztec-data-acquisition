@@ -28,9 +28,9 @@ import org.controlsfx.dialog.Dialogs;
 
 import com.badlogic.gdx.math.Vector3;
 
-import edu.sdsu.rocket.core.io.DatagramClient;
 import edu.sdsu.rocket.core.models.Pressures;
 import edu.sdsu.rocket.core.models.Sensors;
+import edu.sdsu.rocket.core.net.SensorClient;
 import eu.hansolo.enzo.common.Section;
 import eu.hansolo.enzo.gauge.Gauge;
 import eu.hansolo.enzo.gauge.GaugeBuilder;
@@ -39,10 +39,12 @@ import eu.hansolo.enzo.gauge.GaugeBuilder;
 public class MainController {
 	
 	private static final boolean DEBUG_SENSORS = false;
-	private static final int PORT = 4444;
 	
 	private static final String CONNECT    = "Connect";
 	private static final String DISCONNECT = "Disconnect";
+	
+	private static final int PORT = 4444;
+	private final SensorClient client = new SensorClient(new Sensors());
 	
 	@FXML private TextField hostTextField;
 	@FXML private Button connectButton;
@@ -50,7 +52,6 @@ public class MainController {
 	@FXML private Label frequencyLabel;
 	@FXML private FlowPane gaugePane;
 	
-	private DatagramClient client = new DatagramClient();
 	private Gauge lox;
 	private Gauge kerosene;
 	private Gauge helium;
@@ -78,9 +79,9 @@ public class MainController {
 	 * Called prior to the initialize() method.
 	 */
 	public MainController() {
-		client.setListener(new DatagramClient.ClientListener() {
+		client.setListener(new SensorClient.SensorClientListener() {
 			@Override
-			public void onSensorData(final Sensors sensors) {
+			public void onSensorsUpdated(final Sensors sensors) {
 				Platform.runLater(new Runnable() {
 					@Override
 					public void run() {
@@ -104,12 +105,7 @@ public class MainController {
             public void changed(ObservableValue<? extends Number> observable, Number oldValue, Number newValue) {
             	int value = newValue.intValue();
             	frequencyLabel.setText(value + " Hz");
-            	if (value == 0) {
-            		client.pause();
-            	} else {
-            		client.setFrequency(value);
-            		client.resume();
-            	}
+            	client.setFrequency(value);
             }
         });
 
@@ -261,11 +257,8 @@ public class MainController {
 		if (CONNECT.equals(connectButton.getText())) {
 			try {
 				InetAddress addr = InetAddress.getByName(hostTextField.getText());
+				client.setFrequency((float) frequencySlider.getValue());
 				client.start(addr, PORT);
-				if (frequencySlider.getValue() != 0) {
-					client.setFrequency((float) frequencySlider.getValue());
-					client.resume();
-				}
 				connectButton.setText(DISCONNECT);
 			} catch (IOException e) {
 				e.printStackTrace();
