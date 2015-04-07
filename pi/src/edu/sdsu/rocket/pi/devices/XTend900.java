@@ -135,11 +135,12 @@ public class XTend900 implements Device {
 	}
 	
 	public XTend900 enterATCommandMode() throws InterruptedException, IllegalStateException, IOException {
-		Thread.sleep(1000L);
+		Thread.sleep(5000L);
 		String cmd = Command.ENTER_AT_COMMAND_MODE.text;
 		Console.log(cmd + " [Enter AT Command Mode]");
-		writeln(cmd);
-		Thread.sleep(1000L);
+		serial.write(cmd);
+		serial.flush();
+		Thread.sleep(2000L);
 		return this;
 	}
 	
@@ -254,9 +255,10 @@ public class XTend900 implements Device {
 	}
 	
 	private void writeln(String string) throws IllegalStateException, IOException {
-		serial.writeln(string);
+		serial.write(string + "\r");
+		serial.flush();
 		try {
-			Thread.sleep(2000L);
+			Thread.sleep(1000L);
 		} catch (InterruptedException e) {
 			Console.error(e);
 		}
