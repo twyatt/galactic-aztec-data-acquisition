@@ -4,8 +4,6 @@ import java.io.IOException;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 
-import edu.sdsu.rocket.core.helpers.Console;
-
 public class DatagramPacketRunnable implements Runnable {
 	
 	// http://en.wikipedia.org/wiki/User_Datagram_Protocol#Packet_structure
@@ -41,12 +39,12 @@ public class DatagramPacketRunnable implements Runnable {
 					listener.onPacketReceived(packet);
 				}
 			} catch (IOException e) {
-				Console.error(e);
+				System.err.println(e);
 				
 				try {
 					Thread.sleep(250L);
-				} catch (InterruptedException e1) {
-					Console.error(e1);
+				} catch (InterruptedException ie) {
+					System.err.println(ie);
 					return;
 				}
 			}

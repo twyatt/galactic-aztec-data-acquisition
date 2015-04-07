@@ -102,7 +102,7 @@ public abstract class RateLimitedRunnable implements Runnable {
 					}
 				}
 			} catch (InterruptedException e) {
-				Console.error(e);
+				System.err.println(e);
 				return;
 			}
 		}

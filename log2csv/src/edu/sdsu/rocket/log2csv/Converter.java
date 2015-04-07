@@ -7,12 +7,12 @@ import java.io.IOException;
 
 import au.com.bytecode.opencsv.CSVWriter;
 import edu.sdsu.rocket.core.io.ADS1115InputStream;
-import edu.sdsu.rocket.core.io.ADXL345InputStream;
-import edu.sdsu.rocket.core.io.ITG3205InputStream;
-import edu.sdsu.rocket.core.io.MS5611InputStream;
 import edu.sdsu.rocket.core.io.ADS1115InputStream.ADS1115Reading;
+import edu.sdsu.rocket.core.io.ADXL345InputStream;
 import edu.sdsu.rocket.core.io.ADXL345InputStream.ADXL345Reading;
+import edu.sdsu.rocket.core.io.ITG3205InputStream;
 import edu.sdsu.rocket.core.io.ITG3205InputStream.ITG3205Reading;
+import edu.sdsu.rocket.core.io.MS5611InputStream;
 import edu.sdsu.rocket.core.io.MS5611InputStream.MS5611Reading;
 
 public class Converter {
@@ -29,7 +29,7 @@ public class Converter {
 			convertADS1115();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println("ADS1115: " + e.getMessage());
+			System.err.println("ADS1115: " + e);
 		}
 		
 		System.out.print("Converting ADXL345 ... ");
@@ -37,7 +37,7 @@ public class Converter {
 			convertADXL345();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println("ADXL345: " + e.getMessage());
+			System.err.println("ADXL345: " + e);
 		}
 		
 		System.out.print("Converting ITG3205 ... ");
@@ -45,7 +45,7 @@ public class Converter {
 			convertITG3205();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println("ITG3205: " + e.getMessage());
+			System.err.println("ITG3205: " + e);
 		}
 		
 		System.out.print("Converting MS5611 ... ");
@@ -53,7 +53,7 @@ public class Converter {
 			convertMS5611();
 			System.out.println("Done");
 		} catch (IOException e) {
-			System.err.println("MS5611: " + e.getMessage());
+			System.err.println("MS5611: " + e);
 		}
 	}
 

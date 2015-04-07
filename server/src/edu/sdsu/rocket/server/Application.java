@@ -6,26 +6,28 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
-import java.text.DateFormat;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 
+import net.sf.marineapi.nmea.event.SentenceEvent;
+import net.sf.marineapi.nmea.event.SentenceListener;
+import net.sf.marineapi.nmea.io.SentenceReader;
+import net.sf.marineapi.provider.PositionProvider;
 import net.sf.marineapi.provider.event.PositionEvent;
 import net.sf.marineapi.provider.event.ProviderListener;
 
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.Json;
 import com.pi4j.io.i2c.I2CBus;
-import com.pi4j.io.serial.Baud;
 import com.pi4j.io.serial.Serial;
-import com.pi4j.io.serial.SerialConfig;
 import com.pi4j.io.serial.SerialDataEvent;
 import com.pi4j.io.serial.SerialDataEventListener;
 import com.pi4j.io.serial.SerialFactory;
 
-import edu.sdsu.rocket.core.helpers.Console;
+import edu.sdsu.rocket.core.helpers.Logging;
+import edu.sdsu.rocket.core.helpers.Settings;
 import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
@@ -54,21 +56,9 @@ public class Application {
 	public static final String FILE_SEPARATOR = System.getProperty("file.separator");
 	private static final long NANOSECONDS_PER_SECOND = 1000000000L;
 	
-	private static final int SERVER_PORT = 4444;
+	private Settings settings;
+	private Logging log;
 	
-	private static final boolean USB_LOGGING_ENABLED = true;
-	private static final String USB_LOG_DIR = "/mnt/blackbox/logs";
-	
-	protected static final String EVENT_LOG   = "event.log";
-	protected static final String ADXL345_LOG = "adxl345.log";
-	protected static final String ITG3205_LOG = "itg3205.log";
-	protected static final String MS5611_LOG  = "ms5611.log";
-	protected static final String ADS1115_LOG = "ads1115.log";
-	protected static final String GPS_LOG     = "gps.txt";
-	
-	protected File sdLogDir;
-	protected File usbLogDir;
-	protected PrintWriter log;
 	protected ADXL345OutputStream adxl345log;
 	protected ITG3205OutputStream itg3205log;
 	protected MS5611OutputStream ms5611log;
@@ -81,12 +71,11 @@ public class Application {
 	private final SensorServer server;
 	
 	private XTend900 radio;
-	private AdafruitGPS gps;
 	
 	private final Vector3 tmpVec = new Vector3();
 	
 	public Application(Sensors sensors) {
-		Console.log("Starting application.");
+		System.out.println("Starting application.");
 		if (sensors == null) {
 			throw new NullPointerException();
 		}
@@ -95,47 +84,38 @@ public class Application {
 	}
 	
 	public void setup() throws IOException {
+		loadSettings();
 		setupLogging();
 		setupDevices();
 		setupServer();
 	}
 
+	private void loadSettings() throws FileNotFoundException {
+		File file = new File("settings.json");
+		System.out.println("Loading Settings: " + file);
+		
+		Json json = new Json();
+		settings = json.fromJson(Settings.class, new FileInputStream(file));
+	}
+
 	protected void setupLogging() throws IOException {
-		Console.log("Setup Logging.");
+		System.out.println("Setup Logging.");
+		log = new Logging(settings);
 		
-		DateFormat dirDateFormat = new SimpleDateFormat("yyyyMMddHHmmss");
-		String timestamp = dirDateFormat.format(new Date());
-		
-		File userDir = new File(System.getProperty("user.dir", "~"));
-		if (!userDir.exists()) {
-			throw new IOException("Directory does not exist: " + userDir);
+		OutputStreamMultiplexer out = new OutputStreamMultiplexer(System.out);
+		OutputStreamMultiplexer err = new OutputStreamMultiplexer(System.err);
+		Array<File> dirs = log.getDirectories();
+		for (File d : dirs) {
+			FileOutputStream f = new FileOutputStream(d + Logging.FILE_SEPARATOR + "log.txt");
+			out.add(f);
+			err.add(f);
 		}
 		
-		sdLogDir = new File(userDir + FILE_SEPARATOR + "logs" + FILE_SEPARATOR + timestamp);
-		Console.log("SD Log Directory: " + sdLogDir);
-		if (!sdLogDir.exists()) {
-			Console.log("mkdir " + sdLogDir);
-			sdLogDir.mkdirs();
-		}
+		// http://stackoverflow.com/a/18669284/196486
+		System.setOut(new PrintStream(out));
+		System.setErr(new PrintStream(err));
 		
-		if (USB_LOGGING_ENABLED) {
-			File usbDir = new File(USB_LOG_DIR);
-			if (!usbDir.exists()) {
-				throw new IOException("USB log directory does not exist: " + usbDir);
-			}
-			usbLogDir = new File(USB_LOG_DIR + FILE_SEPARATOR + timestamp);
-			if (!usbLogDir.exists()) {
-				Console.log("mkdir " + usbLogDir);
-				usbLogDir.mkdirs();
-			}
-		}
-		
-		long now = System.currentTimeMillis();
-		DateFormat logDateFormat = DateFormat.getDateInstance(DateFormat.LONG);
-		log = new PrintWriter(sdLogDir + FILE_SEPARATOR + EVENT_LOG);
-		String message = "Application started at " + logDateFormat.format(new Date(now)) + " (" + now + " ms since Unix Epoch).";
-		Console.log(message);
-		log.println(message);
+		System.out.println("Logging started at " + System.nanoTime() + ".");
 	}
 	
 	protected void setupDevices() throws IOException {
@@ -143,75 +123,13 @@ public class Application {
 		setupGyroscope();
 		setupBarometer();
 		setupADC();
-//		setupGPS();
-	}
-	
-	private void setupRadio() throws IOException {
-		Console.log("Setup Radio [XTend900].");
-		
-		Serial serial = SerialFactory.createInstance();
-		SerialConfig config = new SerialConfig();
-		config.baud(Baud._9600);
-		
-		// setup serial listener to see command responses
-		SerialDataEventListener listener = new SerialDataEventListener() {
-			@Override
-			public void dataReceived(SerialDataEvent event) {
-				try {
-					Console.log(event.getAsciiString());
-				} catch (IOException e) {
-					Console.error(e);
-				}
-			}
-		};
-		serial.addListener(listener);
-		serial.open(config);
-		
-		radio = new XTend900(serial, sensors);
-		try {
-			radio
-				.turnOn()
-				.enterATCommandMode()
-				.writeNumberBase(NumberBase.DEFAULT_WITH_UNITS)
-				.requestBoardVoltage()
-				.requestHardwareVersion()
-				.writeRFDataRate(RFDataRate.BAUD_115200)
-				.writeTXPowerLevel(TXPowerLevel.TX_1000mW)
-				
-				// point-to-multipoint: remotes (pg 44)
-				.writeAutosetMY()
-				.writeDestinationAddress("0") // 0x00
-				
-				.exitATCommandMode()
-				.turnOff()
-				;
-		} catch (IllegalStateException e) {
-			Console.error(e);
-			throw new IOException(e);
-		} catch (InterruptedException e) {
-			Console.error(e);
-			throw new IOException(e);
-		}
-		
-		// clean up serial listener
-		serial.removeListener(listener);
-		
-		manager.add(radio)
-			.setSleep(100L /* ms */); // 100 ms = 10 Hz
+		setupGPS();
 	}
 	
 	private void setupAcceleromter() throws IOException {
-		Console.log("Setup Accelerometer [ADXL345].");
-		
-		String sdFile = sdLogDir + FILE_SEPARATOR + ADXL345_LOG;
-		Console.log("SD Log: " + sdFile);
-		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
-		if (usbLogDir != null) {
-			String usbFile = usbLogDir + FILE_SEPARATOR + ADXL345_LOG;
-			Console.log("USB Log: " + usbFile);
-			out.add(new FileOutputStream(usbFile));
-		}
-		adxl345log = new ADXL345OutputStream(out);
+		if (!settings.devices.adxl345.enabled) return;
+		System.out.println("Setup Accelerometer [ADXL345].");
+		adxl345log = log.openADXL345OutputStream();
 		
 		ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
 		adxl345.setup();
@@ -224,7 +142,7 @@ public class Application {
 		float scalingFactor = adxl345.getScalingFactor();
 		sensors.accelerometer.setScalingFactor(scalingFactor);
 		adxl345log.writeScalingFactor(scalingFactor);
-		Console.log("Scaling Factor: " + scalingFactor);
+		System.out.println("Scaling Factor: " + scalingFactor);
 		
 		adxl345.setListener(new ADXL345.AccelerometerListener() {
 			@Override
@@ -235,26 +153,17 @@ public class Application {
 				try {
 					adxl345log.writeValues(x, y, z);
 				} catch (IOException e) {
-					Console.error(e.getMessage());
+					System.err.println(e);
 				}
 			}
 		});
-		manager.add(adxl345)
-			.setThrottle(250 /* Hz */);
+		manager.add(adxl345).setThrottle(settings.devices.adxl345.throttle);
 	}
 
 	private void setupGyroscope() throws IOException, FileNotFoundException {
-		Console.log("Setup Gyroscope [ITG3205].");
-		
-		String sdFile = sdLogDir + FILE_SEPARATOR + ITG3205_LOG;
-		Console.log("SD Log: " + sdFile);
-		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
-		if (usbLogDir != null) {
-			String usbFile = usbLogDir + FILE_SEPARATOR + ITG3205_LOG;
-			Console.log("USB Log: " + usbFile);
-			out.add(new FileOutputStream(usbFile));
-		}
-		itg3205log = new ITG3205OutputStream(out);
+		if (!settings.devices.itg3205.enabled) return;
+		System.out.println("Setup Gyroscope [ITG3205].");
+		itg3205log = log.openITG3205OutputStream();
 		
 		ITG3205 itg3205 = new ITG3205(I2CBus.BUS_1);
 		itg3205.setup();
@@ -278,27 +187,18 @@ public class Application {
 				try {
 					itg3205log.writeValues(x, y, z);
 				} catch (IOException e) {
-					Console.error(e.getMessage());
+					System.err.println(e);
 				}
 			}
 			
 		});
-		manager.add(itg3205)
-			.setThrottle(250 /* Hz */);
+		manager.add(itg3205).setThrottle(settings.devices.itg3205.throttle);
 	}
 	
 	private void setupBarometer() throws IOException {
-		Console.log("Setup Barometer [MS5611].");
-		
-		String sdFile = sdLogDir + FILE_SEPARATOR + MS5611_LOG;
-		Console.log("SD Log: " + sdFile);
-		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
-		if (usbLogDir != null) {
-			String usbFile = usbLogDir + FILE_SEPARATOR + MS5611_LOG;
-			Console.log("USB Log: " + usbFile);
-			out.add(new FileOutputStream(usbFile));
-		}
-		ms5611log = new MS5611OutputStream(out);
+		if (!settings.devices.ms5611.enabled) return;
+		System.out.println("Setup Barometer [MS5611].");
+		ms5611log = log.openMS5611OutputStream();
 		
 		MS5611 ms5611 = new MS5611(I2CBus.BUS_1);
 		ms5611.setup();
@@ -311,7 +211,7 @@ public class Application {
 				try {
 					ms5611log.writeValues(T, P);
 				} catch (IOException e) {
-					Console.error(e.getMessage());
+					System.err.println(e);
 				}
 			}
 
@@ -320,28 +220,19 @@ public class Application {
 				try {
 					ms5611log.writeFault(fault.ordinal());
 				} catch (IOException e) {
-					Console.error(e.getMessage());
+					System.err.println(e);
 				}
-				Console.error("MS5611 fault: " + fault);
+				System.err.println("MS5611 fault: " + fault);
 			}
 		});
 		
-		manager.add(ms5611)
-			.setThrottle(250 /* Hz */);
+		manager.add(ms5611).setThrottle(settings.devices.ms5611.throttle);
 	}
 
 	private void setupADC() throws IOException {
-		Console.log("Setup ADC [ADS1115].");
-		
-		String sdFile = sdLogDir + FILE_SEPARATOR + ADS1115_LOG;
-		Console.log("SD Log: " + sdFile);
-		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
-		if (usbLogDir != null) {
-			String usbFile = usbLogDir + FILE_SEPARATOR + ADS1115_LOG;
-			Console.log("USB Log: " + usbFile);
-			out.add(new FileOutputStream(usbFile));
-		}
-		ads1115log = new ADS1115OutputStream(out);
+		if (!settings.devices.ads1115.enabled) return;
+		System.out.println("Setup ADC [ADS1115].");
+		ads1115log = log.openADS1115OutputStream();
 		
 		ADS1115 ads1115 = new ADS1115(I2CBus.BUS_1);
 		ads1115.setup()
@@ -357,7 +248,7 @@ public class Application {
 		
 		long timeout = (1L * NANOSECONDS_PER_SECOND) / sps * 5L; // 5 X expected sample duration
 		ads1115.setTimeout(timeout);
-		Console.log("ADS1115 timeout: " + timeout);
+		System.out.println("ADS1115 timeout: " + timeout);
 		ads1115.setListener(new ADS1115.AnalogListener() {
 			@Override
 			public void onValue(ADS1115.Channel channel, float value) {
@@ -365,7 +256,7 @@ public class Application {
 				try {
 					ads1115log.writeValue(channel.ordinal(), value);
 				} catch (IOException e) {
-					Console.error(e.getMessage());
+					System.err.println(e);
 				}
 			}
 		});
@@ -374,25 +265,40 @@ public class Application {
 	}
 	
 	private void setupGPS() throws FileNotFoundException {
-		Console.log("Setup GPS [Adafruit Ultimate GPS].");
+		if (!settings.devices.gps.enabled) return;
+		System.out.println("Setup GPS [Adafruit Ultimate GPS].");
 		
-		String source = "/dev/ttyUSB0"; // USB
-//		String source = "/dev/ttyAMA0"; // GPIO
-		Console.log("Source: " + source);
+		FileInputStream in = new FileInputStream(settings.devices.gps.device);
+		OutputStreamMultiplexer out = log.openGPSOutputStream();
+		final PrintWriter writer = new PrintWriter(out);
 		
-		String sdFile = sdLogDir + FILE_SEPARATOR + GPS_LOG;
-		Console.log("SD Log: " + sdFile);
-		OutputStreamMultiplexer out = new OutputStreamMultiplexer(new FileOutputStream(sdFile));
-		if (usbLogDir != null) {
-			String usbFile = usbLogDir + FILE_SEPARATOR + GPS_LOG;
-			Console.log("USB Log: " + usbFile);
-			out.add(new FileOutputStream(usbFile));
-		}
+		SentenceReader reader = new SentenceReader(in);
+		reader.addSentenceListener(new SentenceListener() {
+			
+			@Override
+			public void readingStarted() {
+				System.out.println("GPS reading started.");
+			}
+			
+			@Override
+			public void readingStopped() {
+				System.out.println("GPS reading stopped.");
+			}
+			
+			@Override
+			public void readingPaused() {
+				System.out.println("GPS reading paused.");
+			}
+			
+			@Override
+			public void sentenceRead(SentenceEvent event) {
+				String sentence = event.getSentence().toString();
+				writer.println(sentence);
+			}
+		});
 		
-		FileInputStream in = new FileInputStream(source);
-		gps = new AdafruitGPS(in);
-		gps.setOutputStream(out);
-		gps.getPositionProvider().addListener(new ProviderListener<PositionEvent>() {
+		PositionProvider provider = new PositionProvider(reader);
+		provider.addListener(new ProviderListener<PositionEvent>() {
 			@Override
 			public void providerUpdate(PositionEvent event) {
 				double latitude  = event.getPosition().getLatitude();
@@ -401,82 +307,141 @@ public class Application {
 				sensors.gps.set(latitude, longitude, altitude);
 			}
 		});
+		reader.start();
+		
+		AdafruitGPS gps = new AdafruitGPS(in);
+		gps.setOutputStream(out);
 	}
 	
 	protected void setupServer() throws IOException {
-		Console.log("Setup server.");
-		server.start(SERVER_PORT);
+		System.out.println("Setup server.");
+		server.start(settings.server.port);
+	}
+	
+	private void setupRadio() throws IOException {
+		if (!settings.devices.xtend900.enabled) return;
+		System.out.println("Setup Radio [XTend900].");
+		
+		Serial serial = SerialFactory.createInstance();
+		
+		// setup serial listener to see command responses
+		SerialDataEventListener listener = new SerialDataEventListener() {
+			@Override
+			public void dataReceived(SerialDataEvent event) {
+				try {
+					System.out.println(event.getAsciiString());
+				} catch (IOException e) {
+					System.err.println(e);
+				}
+			}
+		};
+		serial.addListener(listener);
+		serial.open(settings.devices.xtend900.device, settings.devices.xtend900.baud);
+		
+		radio = new XTend900(serial, sensors);
+		try {
+			radio.turnOn().enterATCommandMode();
+			radio
+				.writeNumberBase(NumberBase.DEFAULT_WITH_UNITS)
+				.requestBoardVoltage()
+				.requestHardwareVersion()
+				.writeRFDataRate(RFDataRate.fromValue(settings.devices.xtend900.rfDataRate))
+				.writeTXPowerLevel(TXPowerLevel.fromValue(settings.devices.xtend900.txPowerLevel));
+			
+			if (settings.devices.xtend900.autosetMY) {
+				radio.writeAutosetMY();
+			}
+			if (settings.devices.xtend900.sourceAddress != null) {
+				radio.writeSourceAddress(settings.devices.xtend900.sourceAddress);
+			}
+			if (settings.devices.xtend900.destinationAddress != null) {
+				radio.writeDestinationAddress(settings.devices.xtend900.destinationAddress);
+			}
+			radio.exitATCommandMode().turnOff();
+		} catch (IllegalStateException e) {
+			System.err.println(e);
+			throw new IOException(e);
+		} catch (InterruptedException e) {
+			System.err.println(e);
+			throw new IOException(e);
+		}
+		
+		// clean up serial listener
+		serial.removeListener(listener);
+		
+		manager.add(radio)
+			.setSleep(settings.devices.xtend900.sleep); // 100 ms = 10 Hz
 	}
 	
 	public void loop() throws IOException {
 		switch (input.read()) {
 		case '?':
-			Console.log();
-			Console.log("?: help");
-			Console.log("t: cpu temperature");
-			Console.log("f: loop frequency");
-			Console.log("a: accelerometer");
-			Console.log("y: gyroscope");
-			Console.log("b: barometer");
-			Console.log("c: analog");
-			Console.log("g: gps");
-			Console.log("s: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
-			Console.log("r: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
-			Console.log("q: quit");
-			Console.log();
+			System.out.println();
+			System.out.println("?: help");
+			System.out.println("t: cpu temperature");
+			System.out.println("f: loop frequency");
+			System.out.println("a: accelerometer");
+			System.out.println("y: gyroscope");
+			System.out.println("b: barometer");
+			System.out.println("c: analog");
+			System.out.println("g: gps");
+			System.out.println("s: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
+			System.out.println("r: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
+			System.out.println("q: quit");
+			System.out.println();
 			break;
 		case 't':
 		case 'T':
 			try {
 				float tempC = Pi.getCpuTemperature();
 				float tempF = tempC * 9f / 5f + 32f;
-				Console.log("CPU: " + tempC + " C, " + tempF + " F");
+				System.out.println("CPU: " + tempC + " C, " + tempF + " F");
 			} catch (NumberFormatException e) {
-				Console.error(e);
+				System.err.println(e);
 			}
 			break;
 		case 'f':
 		case 'F':
-			Console.log(manager.toString());
+			System.out.println(manager.toString());
 			break;
 		case 'a':
 		case 'A':
 			sensors.accelerometer.get(tmpVec);
-			Console.log(tmpVec.scl(9.8f) + " m/s^2");
+			System.out.println(tmpVec.scl(9.8f) + " m/s^2");
 			break;
 		case 'b':
 		case 'B':
 			Barometer barometer = sensors.barometer;
-			Console.log(barometer.getTemperature() + " C, " + barometer.getPressure() + " mbar");
+			System.out.println(barometer.getTemperature() + " C, " + barometer.getPressure() + " mbar");
 			break;
 		case 'y':
 		case 'Y':
 			sensors.gyroscope.get(tmpVec);
-			Console.log(tmpVec + " deg/s");
+			System.out.println(tmpVec + " deg/s");
 			break;
 		case 'c':
 		case 'C':
 			Analog a = sensors.analog;
-			Console.log("A0=" + a.getA0() + " mV,\tA1=" + a.getA1() + " mV,\tA2=" + a.getA2() + " mV,\tA3=" + a.getA3() + " mV");
+			System.out.println("A0=" + a.getA0() + " mV,\tA1=" + a.getA1() + " mV,\tA2=" + a.getA2() + " mV,\tA3=" + a.getA3() + " mV");
 			break;
 		case 'g':
 		case 'G':
 			GPS gps = sensors.gps;
-			Console.log("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
+			System.out.println("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
 			break;
 		case 's':
 		case 'S':
 			if (radio == null) {
 				setupRadio();
 			} else {
-				Console.log("Radio already started.");
+				System.out.println("Radio already started.");
 			}
 			break;
 		case 'r':
 		case 'R':
 			if (radio != null) {
 				radio.toggle();
-				Console.log("Radio is now " + (radio.isOn() ? "ON" : "OFF") + ".");
+				System.out.println("Radio is now " + (radio.isOn() ? "ON" : "OFF") + ".");
 			}
 			break;
 		case 'q':
@@ -487,24 +452,23 @@ public class Application {
 	}
 
 	private void shutdown() {
-		Console.log("Shutting down.");
+		System.out.println("Shutting down.");
 		
-		Console.log("Stopping server.");
+		System.out.println("Stopping server.");
 		server.stop();
 		
-		Console.log("Stopping device manager.");
+		System.out.println("Stopping device manager.");
 		manager.clear();
 		
-		Console.log("Closing log streams.");
+		System.out.println("Closing log streams.");
 		try {
 			if (adxl345log != null) adxl345log.close();
 			if (itg3205log != null) itg3205log.close();
 			if (ms5611log != null) ms5611log.close();
 			if (ads1115log != null) ads1115log.close();
 		} catch (IOException e) {
-			Console.error(e.getMessage());
+			System.err.println(e);
 		}
-		if (log != null) log.close();
 		
 		System.exit(0);
 	}

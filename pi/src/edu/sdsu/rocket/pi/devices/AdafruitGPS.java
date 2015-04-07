@@ -10,7 +10,6 @@ import net.sf.marineapi.nmea.event.SentenceEvent;
 import net.sf.marineapi.nmea.event.SentenceListener;
 import net.sf.marineapi.nmea.io.SentenceReader;
 import net.sf.marineapi.provider.PositionProvider;
-import edu.sdsu.rocket.core.helpers.Console;
 
 public class AdafruitGPS implements SentenceListener {
 
@@ -59,8 +58,8 @@ public class AdafruitGPS implements SentenceListener {
 			try {
 				writer.write(sentence + LINE_SEPARATOR);
 			} catch (IOException e) {
-				Console.error("Failed to write GPS sentence, " + e.getMessage());
-//				e.printStackTrace();
+				System.err.println("Failed to write GPS sentence, " + e);
+				e.printStackTrace();
 			}
 		}
 	}

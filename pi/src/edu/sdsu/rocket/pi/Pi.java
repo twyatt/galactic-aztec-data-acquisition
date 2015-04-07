@@ -16,8 +16,7 @@ public class Pi {
 		try {
 			in = new BufferedReader(new FileReader(CPU_TEMPERATURE_DEVICE));
 		} catch (FileNotFoundException e) {
-			System.err.println(e.getMessage());
-//			e.printStackTrace();
+			System.err.println(e);
 			return 0f;
 		}
 		float temperature = (float) Integer.valueOf(in.readLine()) / 1000f;

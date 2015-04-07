@@ -6,7 +6,6 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 
-import edu.sdsu.rocket.core.helpers.Console;
 import edu.sdsu.rocket.core.models.Sensors;
 
 public class SensorServer {
@@ -41,7 +40,7 @@ public class SensorServer {
 						break;
 					}
 				} catch (IOException e) {
-					Console.error(e.getMessage());
+					System.err.println(e);
 				}
 			}
 		});

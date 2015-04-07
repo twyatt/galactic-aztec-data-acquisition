@@ -6,7 +6,6 @@ import java.net.InetSocketAddress;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 
-import edu.sdsu.rocket.core.helpers.Console;
 import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
 import edu.sdsu.rocket.core.models.Sensors;
 
@@ -82,7 +81,7 @@ public class SensorClient {
 				try {
 					sendSensorRequest();
 				} catch (IOException e) {
-					Console.error(e);
+					System.err.println(e);
 				}
 			}
 		};
@@ -104,7 +103,7 @@ public class SensorClient {
 			try {
 				thread.join();
 			} catch (InterruptedException e) {
-				Console.error(e);
+				System.err.println(e);
 			}
 			thread = null;
 		}

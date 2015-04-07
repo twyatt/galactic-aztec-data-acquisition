@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import edu.sdsu.rocket.core.helpers.Console;
 import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
 
 public class DeviceManager {
@@ -20,14 +19,14 @@ public class DeviceManager {
 		DeviceThread thread = new DeviceThread(runnable);
 		thread.setName(device.getClass().getSimpleName());
 		threads.add(thread);
-		Console.log("Starting " + thread.getName() + " thread.");
+		System.out.println("Starting " + thread.getName() + " thread.");
 		thread.start();
 		return runnable;
 	}
 	
 	public void clear() {
 		for (Thread thread : threads) {
-			Console.log("Stopping " + thread.getName() + " thread.");
+			System.out.println("Stopping " + thread.getName() + " thread.");
 			thread.interrupt();
 			try {
 				thread.join();
@@ -92,7 +91,7 @@ public class DeviceManager {
 			try {
 				device.loop();
 			} catch (IOException e) {
-				Console.error(e);
+				System.err.println(e);
 			}
 			
 			loops++;

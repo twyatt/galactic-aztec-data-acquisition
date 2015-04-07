@@ -10,7 +10,6 @@ import com.pi4j.io.gpio.PinState;
 import com.pi4j.io.gpio.RaspiPin;
 import com.pi4j.io.serial.Serial;
 
-import edu.sdsu.rocket.core.helpers.Console;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
 
@@ -28,6 +27,7 @@ public class XTend900 implements Device {
 		HARDWARE_VERSION        ("ATHV"),
 		AUTOSET_MY              ("ATAM"),
 		DESTINATION_ADDRESS     ("ATDT"),
+		SOURCE_ADDRESS          ("ATMY"),
 		TX_POWER_LEVEL          ("ATPL"),
 		BOARD_TEMPERATURE       ("ATTP"),
 		TRANSMIT_ONLY           ("ATTX"),
@@ -74,6 +74,12 @@ public class XTend900 implements Device {
 		RFDataRate(int parameter) {
 			this.parameter = parameter;
 		}
+		public static RFDataRate fromValue(int value) {
+			for (RFDataRate v : values()) {
+				if (value == v.parameter) return v;
+			}
+			return BAUD_115200;
+		}
 	}
 	
 	public enum GPO2Configuration {
@@ -93,11 +99,17 @@ public class XTend900 implements Device {
 		TX_10mW  (1),
 		TX_100mW (2),
 		TX_500mW (3),
-		TX_1000mW(4),
+		TX_1000mW(4), // default
 		;
 		final int parameter;
 		TXPowerLevel(int parameter) {
 			this.parameter = parameter;
+		}
+		public static TXPowerLevel fromValue(int value) {
+			for (TXPowerLevel v : values()) {
+				if (value == v.parameter) return v;
+			}
+			return TX_1000mW;
 		}
 	}
 	
@@ -135,102 +147,109 @@ public class XTend900 implements Device {
 	}
 	
 	public XTend900 enterATCommandMode() throws InterruptedException, IllegalStateException, IOException {
-		Thread.sleep(5000L);
+		Thread.sleep(500L);
 		String cmd = Command.ENTER_AT_COMMAND_MODE.text;
-		Console.log(cmd + " [Enter AT Command Mode]");
+		System.out.println(cmd + " [Enter AT Command Mode]");
 		serial.write(cmd);
 		serial.flush();
-		Thread.sleep(2000L);
+		Thread.sleep(1000L);
 		return this;
 	}
 	
 	public XTend900 exitATCommandMode() throws IllegalStateException, IOException {
 		String cmd = Command.EXIT_AT_COMMAND_MODE.text;
-		Console.log(cmd + " [Exit AT Command Mode]");
+		System.out.println(cmd + " [Exit AT Command Mode]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestBoardVoltage() throws IllegalStateException, IOException {
 		String cmd = Command.BOARD_VOLTAGE.text;
-		Console.log(cmd + " [Board Voltage]");
+		System.out.println(cmd + " [Board Voltage]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestReceivedSignalStrength() throws IllegalStateException, IOException {
 		String cmd = Command.RECEIVED_SIGNAL_STRENGTH.text;
-		Console.log(cmd + " [Received Signal Strength]");
+		System.out.println(cmd + " [Received Signal Strength]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestHardwareVersion() throws IllegalStateException, IOException {
 		String cmd = Command.HARDWARE_VERSION.text;
-		Console.log(cmd + " [Hardware Version]");
+		System.out.println(cmd + " [Hardware Version]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 requestBoardTemperature() throws IllegalStateException, IOException {
 		String cmd = Command.BOARD_TEMPERATURE.text;
-		Console.log(cmd + " [Board Temperature]");
+		System.out.println(cmd + " [Board Temperature]");
 		writeln(cmd);
 		return this;
 	}
 
 	public XTend900 writeNumberBase(NumberBase base) throws IllegalStateException, IOException {
 		String cmd = Command.NUMBER_BASE.text + base.parameter;
-		Console.log(cmd + " [Number Base: " + base + "]");
+		System.out.println(cmd + " [Number Base: " + base + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeInterfaceDataRate(InterfaceDataRate rate) throws IllegalStateException, IOException {
 		String cmd = Command.INTERFACE_DATA_RATE.text + rate.paramter;
-		Console.log(cmd + " [Interface Data Rate: " + rate + "]");
+		System.out.println(cmd + " [Interface Data Rate: " + rate + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeRFDataRate(RFDataRate rate) throws IllegalStateException, IOException {
 		String cmd = Command.RF_DATA_RATE.text + rate.parameter;
-		Console.log(cmd + " [RF Data Rate: " + rate + "]");
+		System.out.println(cmd + " [RF Data Rate: " + rate + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeGPO2Configuration(GPO2Configuration config) throws IllegalStateException, IOException {
 		String cmd = Command.GPO2_CONFIGURATION.text + config.parameter;
-		Console.log(cmd + " [GPO2 Configuration: " + config + "]");
+		System.out.println(cmd + " [GPO2 Configuration: " + config + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeTXPowerLevel(TXPowerLevel level) throws IllegalStateException, IOException {
 		String cmd = Command.TX_POWER_LEVEL.text + level.parameter;
-		Console.log(cmd + " [TX Power Level: " + level + "]");
+		System.out.println(cmd + " [TX Power Level: " + level + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeAutosetMY() throws IllegalStateException, IOException {
 		String cmd = Command.AUTOSET_MY.text;
-		Console.log(cmd + " [Auto-set MY]");
+		System.out.println(cmd + " [Auto-set MY]");
+		writeln(cmd);
+		return this;
+	}
+	
+	public XTend900 writeSourceAddress(String address) throws IllegalStateException, IOException {
+		String cmd = Command.SOURCE_ADDRESS.text + address;
+		System.out.println(cmd + " [Source Address: " + address + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeDestinationAddress(String address) throws IllegalStateException, IOException {
 		String cmd = Command.DESTINATION_ADDRESS.text + address;
-		Console.log(cmd + " [Destination Address: " + address + "]");
+		System.out.println(cmd + " [Destination Address: " + address + "]");
 		writeln(cmd);
 		return this;
 	}
 	
 	public XTend900 writeTransmitOnly(TransmitOnly txOnly) throws IllegalStateException, IOException {
 		String cmd = Command.TRANSMIT_ONLY.text + txOnly.parameter;
-		Console.log(cmd + " [Transmit Only: " + txOnly + "]");
+		System.out.println(cmd + " [Transmit Only: " + txOnly + "]");
 		writeln(cmd);
 		return this;
 	}
@@ -258,9 +277,9 @@ public class XTend900 implements Device {
 		serial.write(string + "\r");
 		serial.flush();
 		try {
-			Thread.sleep(1000L);
+			Thread.sleep(500L);
 		} catch (InterruptedException e) {
-			Console.error(e);
+			System.err.println(e);
 		}
 	}
 

@@ -265,7 +265,7 @@ public class MainController {
 				Dialogs.create()
 					.title("Connect")
 					.masthead("Failed to connect.")
-					.message(e.getMessage())
+					.message(e.toString())
 					.showException(e);
 			}
 		} else {

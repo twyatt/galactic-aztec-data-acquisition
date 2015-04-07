@@ -1,7 +1,9 @@
 package edu.sdsu.rocket.core.helpers;
 
+import static java.lang.Float.floatToIntBits;
+import static java.lang.Float.intBitsToFloat;
+
 import java.util.concurrent.atomic.AtomicInteger;
-import static java.lang.Float.*;
 
 // http://stackoverflow.com/a/5505512/196486
 public class AtomicFloat extends Number {

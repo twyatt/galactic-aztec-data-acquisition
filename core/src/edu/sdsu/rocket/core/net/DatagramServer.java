@@ -3,8 +3,6 @@ package edu.sdsu.rocket.core.net;
 import java.net.DatagramSocket;
 import java.net.SocketException;
 
-import edu.sdsu.rocket.core.helpers.Console;
-
 public class DatagramServer {
 	
 	private DatagramSocket socket;
@@ -31,7 +29,7 @@ public class DatagramServer {
 			throw new SocketException("Server already started.");
 		}
 		socket = new DatagramSocket(port);
-		Console.log("Listing on port " + port + ".");
+		System.out.println("Listing on port " + port + ".");
 		
 		runnable = new DatagramPacketRunnable(socket);
 		runnable.setListener(listener);
