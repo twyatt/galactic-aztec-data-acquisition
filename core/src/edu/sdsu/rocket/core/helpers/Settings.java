@@ -1,7 +1,5 @@
 package edu.sdsu.rocket.core.helpers;
 
-import com.badlogic.gdx.utils.Array;
-
 public class Settings {
 	
 	public LoggingSettings logging;
@@ -10,7 +8,7 @@ public class Settings {
 
 	public static class LoggingSettings {
 		public String dateFormat;
-		public Array<String> directories;
+		public String[] directories;
 	}
 	
 	public static class ServerSettings {
@@ -59,6 +57,7 @@ public class Settings {
 	public static class ADS1115Settings {
 		public boolean enabled;
 		public String logFile;
+		public int[] sequence;
 	}
 	
 	public static class GPSSettings {

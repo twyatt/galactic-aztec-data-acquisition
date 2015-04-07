@@ -249,6 +249,11 @@ public class Application {
 		long timeout = (1L * NANOSECONDS_PER_SECOND) / sps * 5L; // 5 X expected sample duration
 		ads1115.setTimeout(timeout);
 		System.out.println("ADS1115 timeout: " + timeout);
+		
+		if (settings.devices.ads1115.sequence != null) {
+			ads1115.setSequence(settings.devices.ads1115.sequence);
+		}
+		
 		ads1115.setListener(new ADS1115.AnalogListener() {
 			@Override
 			public void onValue(ADS1115.Channel channel, float value) {
@@ -345,8 +350,8 @@ public class Application {
 				.writeNumberBase(NumberBase.DEFAULT_WITH_UNITS)
 				.requestBoardVoltage()
 				.requestHardwareVersion()
-				.writeRFDataRate(RFDataRate.fromValue(settings.devices.xtend900.rfDataRate))
-				.writeTXPowerLevel(TXPowerLevel.fromValue(settings.devices.xtend900.txPowerLevel));
+				.writeRFDataRate(RFDataRate.valueOf(settings.devices.xtend900.rfDataRate))
+				.writeTXPowerLevel(TXPowerLevel.valueOf(settings.devices.xtend900.txPowerLevel));
 			
 			if (settings.devices.xtend900.autosetMY) {
 				radio.writeAutosetMY();

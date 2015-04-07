@@ -11,6 +11,15 @@ public class ADS1115 implements Device {
 	
 	public enum Channel {
 		A0, A1, A2, A3,
+		;
+		public static Channel valueOf(int value) {
+			switch (value) {
+			case 1:  return Channel.A1;
+			case 2:  return Channel.A2;
+			case 3:  return Channel.A3;
+			default: return Channel.A0;
+			}
+		}
 	}
 	
 	public interface AnalogListener {
@@ -22,12 +31,19 @@ public class ADS1115 implements Device {
 		return this;
 	}
 	
-	private static final int CHANNELS = 4;
 	private static final boolean DEBUG = true;
 	
 	private long timeout;
 	public void setTimeout(long timeout) {
 		this.timeout = timeout;
+	}
+	
+	private int[] sequence = new int[] { 0, 1, 2, 3 };
+	public void setSequence(int[] sequence) {
+		if (sequence == null || sequence.length == 0) {
+			sequence = new int[] { 0, 1, 2, 3 };
+		}
+		this.sequence = sequence;
 	}
 	
 	/**
@@ -501,9 +517,9 @@ public class ADS1115 implements Device {
 	
 	@Override
 	public void loop() throws IOException, InterruptedException {
-		for (int i = 0; i < CHANNELS; i++) {
+		for (int channel : sequence) {
 			long start = System.nanoTime();
-			setSingleEnded(i).begin();
+			setSingleEnded(channel).begin();
 			
 //			Thread.sleep(0, 250000); // 0.25 ms
 			
@@ -520,24 +536,9 @@ public class ADS1115 implements Device {
 			float value = readMillivolts();
 			
 			if (listener != null) {
-				Channel channel;
-				switch (i) {
-				case 1:
-					channel = Channel.A1;
-					break;
-				case 2:
-					channel = Channel.A2;
-					break;
-				case 3:
-					channel = Channel.A3;
-					break;
-				default:
-					channel = Channel.A0;
-					break;
-				}
-				listener.onValue(channel, value);
+				listener.onValue(Channel.valueOf(channel), value);
 			}
 		}
 	}
-	
+
 }

@@ -74,7 +74,7 @@ public class XTend900 implements Device {
 		RFDataRate(int parameter) {
 			this.parameter = parameter;
 		}
-		public static RFDataRate fromValue(int value) {
+		public static RFDataRate valueOf(int value) {
 			for (RFDataRate v : values()) {
 				if (value == v.parameter) return v;
 			}
@@ -105,7 +105,7 @@ public class XTend900 implements Device {
 		TXPowerLevel(int parameter) {
 			this.parameter = parameter;
 		}
-		public static TXPowerLevel fromValue(int value) {
+		public static TXPowerLevel valueOf(int value) {
 			for (TXPowerLevel v : values()) {
 				if (value == v.parameter) return v;
 			}
