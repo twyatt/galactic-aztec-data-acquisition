@@ -50,6 +50,7 @@ import edu.sdsu.rocket.pi.devices.XTend900;
 import edu.sdsu.rocket.pi.devices.XTend900.NumberBase;
 import edu.sdsu.rocket.pi.devices.XTend900.RFDataRate;
 import edu.sdsu.rocket.pi.devices.XTend900.TXPowerLevel;
+import edu.sdsu.rocket.pi.devices.XTend900.TransmitOnly;
 
 public class Application {
 	
@@ -351,7 +352,9 @@ public class Application {
 				.requestBoardVoltage()
 				.requestHardwareVersion()
 				.writeRFDataRate(RFDataRate.valueOf(settings.devices.xtend900.rfDataRate))
-				.writeTXPowerLevel(TXPowerLevel.valueOf(settings.devices.xtend900.txPowerLevel));
+				.writeTXPowerLevel(TXPowerLevel.valueOf(settings.devices.xtend900.txPowerLevel))
+				.writeTransmitOnly(TransmitOnly.valueOf(settings.devices.xtend900.transmitOnly))
+				;
 			
 			if (settings.devices.xtend900.autosetMY) {
 				radio.writeAutosetMY();

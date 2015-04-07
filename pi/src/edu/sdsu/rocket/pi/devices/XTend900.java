@@ -114,12 +114,18 @@ public class XTend900 implements Device {
 	}
 	
 	public enum TransmitOnly {
-		TX_RX  (0),
+		TX_RX  (0), // default
 		TX_ONLY(1),
 		;
 		final int parameter;
 		TransmitOnly(int parameter) {
 			this.parameter = parameter;
+		}
+		public static TransmitOnly valueOf(int value) {
+			for (TransmitOnly v : values()) {
+				if (value == v.parameter) return v;
+			}
+			return TX_RX;
 		}
 	}
 	

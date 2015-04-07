@@ -34,6 +34,7 @@ public class Settings {
 		public String sourceAddress;
 		public boolean autosetMY;
 		public String destinationAddress;
+		public int transmitOnly;
 	}
 	
 	public static class ADXL345Settings {
