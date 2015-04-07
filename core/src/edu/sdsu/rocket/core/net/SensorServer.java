@@ -63,7 +63,9 @@ public class SensorServer {
 		buffer.clear();
 		buffer.putInt(message.number);
 		buffer.put(Message.SENSOR);
-		sensors.toByteBuffer(buffer);
+		int mask = message.data == null || message.data.length == 0 ? Sensors.ALL_MASK : message.data[0];
+		buffer.put((byte) (mask & 0xFF));
+		sensors.toByteBuffer(buffer, mask);
 		
 		byte[] buf = buffer.array();
 		int length = buffer.position();

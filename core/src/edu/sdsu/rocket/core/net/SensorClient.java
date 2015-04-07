@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
+import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
 
 import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
@@ -126,6 +127,10 @@ public class SensorClient {
 		sendMessage(id, null);
 	}
 	
+	public void sendMessage(byte id, byte data) throws IOException {
+		sendMessage(id, new byte[] { data });
+	}
+	
 	public void sendMessage(byte id, byte[] data) throws IOException {
 		buffer.clear();
 		buffer.putInt(++requestNumber);
@@ -148,11 +153,16 @@ public class SensorClient {
 		
 		switch (message.id) {
 		case Message.SENSOR:
-			// TODO catch buffer underflow
-			sensors.fromByteBuffer(ByteBuffer.wrap(message.data));
-			
-			if (listener != null) {
-				listener.onSensorsUpdated(sensors);
+			try {
+				ByteBuffer buffer = ByteBuffer.wrap(message.data);
+				int mask = buffer.get();
+				sensors.fromByteBuffer(buffer, mask);
+				
+				if (listener != null) {
+					listener.onSensorsUpdated(sensors);
+				}
+			} catch (BufferUnderflowException e) {
+				System.err.println(e);
 			}
 		}
 	}
