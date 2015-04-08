@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
@@ -20,7 +21,6 @@ import net.sf.marineapi.provider.event.ProviderListener;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Json;
-import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.serial.Serial;
 import com.pi4j.io.serial.SerialDataEvent;
 import com.pi4j.io.serial.SerialDataEventListener;
@@ -33,9 +33,6 @@ import edu.sdsu.rocket.core.io.ADXL345OutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
 import edu.sdsu.rocket.core.io.MS5611OutputStream;
 import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
-import edu.sdsu.rocket.core.models.Analog;
-import edu.sdsu.rocket.core.models.Barometer;
-import edu.sdsu.rocket.core.models.GPS;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.core.net.SensorServer;
 import edu.sdsu.rocket.pi.Pi;
@@ -46,11 +43,19 @@ import edu.sdsu.rocket.pi.devices.DeviceManager;
 import edu.sdsu.rocket.pi.devices.ITG3205;
 import edu.sdsu.rocket.pi.devices.ITG3205.GyroscopeListener;
 import edu.sdsu.rocket.pi.devices.MS5611;
+import edu.sdsu.rocket.pi.devices.MockADS1115;
+import edu.sdsu.rocket.pi.devices.MockADXL345;
+import edu.sdsu.rocket.pi.devices.MockITG3205;
+import edu.sdsu.rocket.pi.devices.MockMS5611;
 import edu.sdsu.rocket.pi.devices.XTend900;
+import edu.sdsu.rocket.pi.devices.XTend900.Mode;
 import edu.sdsu.rocket.pi.devices.XTend900.NumberBase;
 import edu.sdsu.rocket.pi.devices.XTend900.RFDataRate;
 import edu.sdsu.rocket.pi.devices.XTend900.TXPowerLevel;
 import edu.sdsu.rocket.pi.devices.XTend900.TransmitOnly;
+import edu.sdsu.rocket.pi.io.SerialDataHandler;
+import edu.sdsu.rocket.pi.io.SerialMessage;
+import edu.sdsu.rocket.pi.io.SerialMessageHandler;
 
 public class Application {
 	
@@ -60,28 +65,19 @@ public class Application {
 	private Settings settings;
 	private Logging log;
 	
-	protected ADXL345OutputStream adxl345log;
-	protected ITG3205OutputStream itg3205log;
-	protected MS5611OutputStream ms5611log;
-	protected ADS1115OutputStream ads1115log;
-	
 	private final DeviceManager manager = new DeviceManager();
 	private final Reader input = new InputStreamReader(System.in);
 	
-	protected final Sensors sensors;
-	private final SensorServer server;
+	private final Sensors local = new Sensors();
+	private final Sensors remote = new Sensors();
+	private final SensorServer server = new SensorServer(local, remote);
 	
 	private XTend900 radio;
 	
 	private final Vector3 tmpVec = new Vector3();
 	
-	public Application(Sensors sensors) {
+	public Application() {
 		System.out.println("Starting application.");
-		if (sensors == null) {
-			throw new NullPointerException();
-		}
-		this.sensors = sensors;
-		this.server = new SensorServer(sensors);
 	}
 	
 	public void setup() throws IOException {
@@ -97,6 +93,19 @@ public class Application {
 		
 		Json json = new Json();
 		settings = json.fromJson(Settings.class, new FileInputStream(file));
+		
+		if (settings.test) {
+			try {
+				System.out.println("!!! TESTING MODE !!! TESTING MODE !!! TESTING MODE !!!");
+				Thread.sleep(1000L);
+				System.out.println("!!! TESTING MODE !!! TESTING MODE !!! TESTING MODE !!!");
+				Thread.sleep(1000L);
+				System.out.println("!!! TESTING MODE !!! TESTING MODE !!! TESTING MODE !!!");
+				Thread.sleep(1000L);
+			} catch (InterruptedException e) {
+				System.err.println(e);
+			}
+		}
 	}
 
 	protected void setupLogging() throws IOException {
@@ -120,19 +129,19 @@ public class Application {
 	}
 	
 	protected void setupDevices() throws IOException {
-		setupAcceleromter();
+		setupAccelerometer();
 		setupGyroscope();
 		setupBarometer();
 		setupADC();
 		setupGPS();
 	}
 	
-	private void setupAcceleromter() throws IOException {
+	private void setupAccelerometer() throws IOException {
 		if (!settings.devices.adxl345.enabled) return;
 		System.out.println("Setup Accelerometer [ADXL345].");
-		adxl345log = log.openADXL345OutputStream();
+		final ADXL345OutputStream adxl345log = log.getADXL345OutputStream();
 		
-		ADXL345 adxl345 = new ADXL345(I2CBus.BUS_1);
+		ADXL345 adxl345 = settings.test ? new MockADXL345() : new ADXL345();
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
 			throw new IOException("Failed to verify ADXL345 device ID");
@@ -141,16 +150,16 @@ public class Application {
 		adxl345.writeFullResolution(true);
 		adxl345.writeRate(ADXL345.ADXL345_RATE_400);
 		float scalingFactor = adxl345.getScalingFactor();
-		sensors.accelerometer.setScalingFactor(scalingFactor);
+		local.accelerometer.setScalingFactor(scalingFactor);
 		adxl345log.writeScalingFactor(scalingFactor);
 		System.out.println("Scaling Factor: " + scalingFactor);
 		
 		adxl345.setListener(new ADXL345.AccelerometerListener() {
 			@Override
 			public void onValues(short x, short y, short z) {
-				sensors.accelerometer.setRawX(x);
-				sensors.accelerometer.setRawY(y);
-				sensors.accelerometer.setRawZ(z);
+				local.accelerometer.setRawX(x);
+				local.accelerometer.setRawY(y);
+				local.accelerometer.setRawZ(z);
 				try {
 					adxl345log.writeValues(x, y, z);
 				} catch (IOException e) {
@@ -164,9 +173,9 @@ public class Application {
 	private void setupGyroscope() throws IOException, FileNotFoundException {
 		if (!settings.devices.itg3205.enabled) return;
 		System.out.println("Setup Gyroscope [ITG3205].");
-		itg3205log = log.openITG3205OutputStream();
+		final ITG3205OutputStream itg3205log = log.getITG3205OutputStream();
 		
-		ITG3205 itg3205 = new ITG3205(I2CBus.BUS_1);
+		ITG3205 itg3205 = settings.test ? new MockITG3205() : new ITG3205();
 		itg3205.setup();
 		if (!itg3205.verifyDeviceID()) {
 			throw new IOException("Failed to verify ITG3205 device ID");
@@ -176,15 +185,15 @@ public class Application {
 		itg3205.writeSampleRateDivider(2); // 2667 Hz
 		itg3205.writeDLPFBandwidth(ITG3205.ITG3205_DLPF_BW_256);
 		
-		sensors.gyroscope.setScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
-		itg3205log.writeScalingFactor(sensors.gyroscope.getScalingFactor());
+		local.gyroscope.setScalingFactor(1f / ITG3205.ITG3205_SENSITIVITY_SCALE_FACTOR);
+		itg3205log.writeScalingFactor(local.gyroscope.getScalingFactor());
 		
 		itg3205.setListener(new GyroscopeListener() {
 			@Override
 			public void onValues(short x, short y, short z) {
-				sensors.gyroscope.setRawX(x);
-				sensors.gyroscope.setRawY(y);
-				sensors.gyroscope.setRawZ(z);
+				local.gyroscope.setRawX(x);
+				local.gyroscope.setRawY(y);
+				local.gyroscope.setRawZ(z);
 				try {
 					itg3205log.writeValues(x, y, z);
 				} catch (IOException e) {
@@ -199,16 +208,16 @@ public class Application {
 	private void setupBarometer() throws IOException {
 		if (!settings.devices.ms5611.enabled) return;
 		System.out.println("Setup Barometer [MS5611].");
-		ms5611log = log.openMS5611OutputStream();
+		final MS5611OutputStream ms5611log = log.getMS5611OutputStream();
 		
-		MS5611 ms5611 = new MS5611(I2CBus.BUS_1);
+		MS5611 ms5611 = settings.test ? new MockMS5611() : new MS5611();
 		ms5611.setup();
 		
 		ms5611.setListener(new MS5611.BarometerListener() {
 			@Override
 			public void onValues(int T, int P) {
-				sensors.barometer.setRawTemperature(T);
-				sensors.barometer.setRawPressure(P);
+				local.barometer.setRawTemperature(T);
+				local.barometer.setRawPressure(P);
 				try {
 					ms5611log.writeValues(T, P);
 				} catch (IOException e) {
@@ -233,9 +242,9 @@ public class Application {
 	private void setupADC() throws IOException {
 		if (!settings.devices.ads1115.enabled) return;
 		System.out.println("Setup ADC [ADS1115].");
-		ads1115log = log.openADS1115OutputStream();
+		final ADS1115OutputStream ads1115log = log.getADS1115OutputStream();
 		
-		ADS1115 ads1115 = new ADS1115(I2CBus.BUS_1);
+		ADS1115 ads1115 = settings.test ? new MockADS1115() : new ADS1115();
 		ads1115.setup()
 			.setGain(ADS1115.Gain.PGA_1)
 			.setMode(ADS1115.Mode.MODE_SINGLE)
@@ -258,7 +267,7 @@ public class Application {
 		ads1115.setListener(new ADS1115.AnalogListener() {
 			@Override
 			public void onValue(ADS1115.Channel channel, float value) {
-				sensors.analog.set(channel.ordinal(), value);
+				local.analog.set(channel.ordinal(), value);
 				try {
 					ads1115log.writeValue(channel.ordinal(), value);
 				} catch (IOException e) {
@@ -274,8 +283,16 @@ public class Application {
 		if (!settings.devices.gps.enabled) return;
 		System.out.println("Setup GPS [Adafruit Ultimate GPS].");
 		
+		if (settings.test) {
+			double latitude = 0;
+			double longitude = 0;
+			double altitude = 0;
+			local.gps.set(latitude, longitude, altitude);
+			return;
+		}
+		
 		FileInputStream in = new FileInputStream(settings.devices.gps.device);
-		OutputStreamMultiplexer out = log.openGPSOutputStream();
+		OutputStream out = log.getGPSOutputStream();
 		final PrintWriter writer = new PrintWriter(out);
 		
 		SentenceReader reader = new SentenceReader(in);
@@ -310,7 +327,7 @@ public class Application {
 				double latitude  = event.getPosition().getLatitude();
 				double longitude = event.getPosition().getLongitude();
 				double altitude  = event.getPosition().getAltitude();
-				sensors.gps.set(latitude, longitude, altitude);
+				local.gps.set(latitude, longitude, altitude);
 			}
 		});
 		reader.start();
@@ -324,10 +341,12 @@ public class Application {
 		server.start(settings.server.port);
 	}
 	
-	private void setupRadio() throws IOException {
+	protected void setupRadio() throws IOException {
 		if (!settings.devices.xtend900.enabled) return;
 		System.out.println("Setup Radio [XTend900].");
 		
+		Mode mode = XTend900.Mode.valueOf(settings.devices.xtend900.mode);
+		System.out.println("Mode: " + mode);
 		Serial serial = SerialFactory.createInstance();
 		
 		// setup serial listener to see command responses
@@ -344,7 +363,7 @@ public class Application {
 		serial.addListener(listener);
 		serial.open(settings.devices.xtend900.device, settings.devices.xtend900.baud);
 		
-		radio = new XTend900(serial, sensors);
+		radio = new XTend900(serial, local);
 		try {
 			radio.turnOn().enterATCommandMode();
 			radio
@@ -355,15 +374,19 @@ public class Application {
 				.writeTXPowerLevel(TXPowerLevel.valueOf(settings.devices.xtend900.txPowerLevel))
 				.writeTransmitOnly(TransmitOnly.valueOf(settings.devices.xtend900.transmitOnly))
 				;
-			
-			if (settings.devices.xtend900.autosetMY) {
+			switch (mode) {
+			case POINT_TO_POINT:
 				radio.writeAutosetMY();
-			}
-			if (settings.devices.xtend900.sourceAddress != null) {
-				radio.writeSourceAddress(settings.devices.xtend900.sourceAddress);
-			}
-			if (settings.devices.xtend900.destinationAddress != null) {
-				radio.writeDestinationAddress(settings.devices.xtend900.destinationAddress);
+				radio.writeDestinationAddress("FFFF");
+				break;
+			case POINT_TO_MULTIPOINT_BASE:
+				radio.writeSourceAddress("0");
+				radio.writeDestinationAddress("FFFF");
+				break;
+			case POINT_TO_MULTIPOINT_REMOTE:
+				radio.writeAutosetMY();
+				radio.writeDestinationAddress("0");
+				break;
 			}
 			radio.exitATCommandMode().turnOff();
 		} catch (IllegalStateException e) {
@@ -377,8 +400,28 @@ public class Application {
 		// clean up serial listener
 		serial.removeListener(listener);
 		
-		manager.add(radio)
-			.setSleep(settings.devices.xtend900.sleep); // 100 ms = 10 Hz
+		switch (mode) {
+		case POINT_TO_MULTIPOINT_BASE:
+			/*
+			 * The radio will run in base mode. So it will parse incoming data
+			 * and store it appropriately.
+			 */
+			serial.addListener(new SerialDataHandler(new SerialMessageHandler() {
+				@Override
+				public void onMessage(SerialMessage message) {
+					// TODO Auto-generated method stub
+				}
+			}));
+			break;
+		case POINT_TO_POINT: // fall thru intentional
+		case POINT_TO_MULTIPOINT_REMOTE:
+			/*
+			 * The radio will run in remote mode. So it will be set to send out
+			 * all local sensor data on interval specified in settings.
+			 */
+			manager.add(radio).setSleep(settings.devices.xtend900.sleep); // 100 ms = 10 Hz
+			break;
+		}
 	}
 	
 	public void loop() throws IOException {
@@ -388,18 +431,22 @@ public class Application {
 			System.out.println("?: help");
 			System.out.println("t: cpu temperature");
 			System.out.println("f: loop frequency");
-			System.out.println("a: accelerometer");
-			System.out.println("y: gyroscope");
-			System.out.println("b: barometer");
-			System.out.println("c: analog");
-			System.out.println("g: gps");
+			System.out.println("a: accelerometer (local)");
+			System.out.println("A: accelerometer (remote)");
+			System.out.println("y: gyroscope (local)");
+			System.out.println("Y: gyroscope (remote)");
+			System.out.println("b: barometer (local)");
+			System.out.println("B: barometer (remote)");
+			System.out.println("c: analog (local)");
+			System.out.println("C: analog (remote)");
+			System.out.println("g: gps (local)");
+			System.out.println("G: gps (remote)");
 			System.out.println("s: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
 			System.out.println("r: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
 			System.out.println("q: quit");
 			System.out.println();
 			break;
 		case 't':
-		case 'T':
 			try {
 				float tempC = Pi.getCpuTemperature();
 				float tempF = tempC * 9f / 5f + 32f;
@@ -409,36 +456,61 @@ public class Application {
 			}
 			break;
 		case 'f':
-		case 'F':
 			System.out.println(manager.toString());
 			break;
 		case 'a':
+			local.accelerometer.get(tmpVec);
+			System.out.println(tmpVec.scl(9.8f) + " m/s^2");
+			break;
 		case 'A':
-			sensors.accelerometer.get(tmpVec);
+			remote.accelerometer.get(tmpVec);
 			System.out.println(tmpVec.scl(9.8f) + " m/s^2");
 			break;
 		case 'b':
+			System.out.println(local.barometer.getTemperature() + " C, " + local.barometer.getPressure() + " mbar");
+			break;
 		case 'B':
-			Barometer barometer = sensors.barometer;
-			System.out.println(barometer.getTemperature() + " C, " + barometer.getPressure() + " mbar");
+			System.out.println(remote.barometer.getTemperature() + " C, " + remote.barometer.getPressure() + " mbar");
 			break;
 		case 'y':
+			local.gyroscope.get(tmpVec);
+			System.out.println(tmpVec + " deg/s");
+			break;
 		case 'Y':
-			sensors.gyroscope.get(tmpVec);
+			remote.gyroscope.get(tmpVec);
 			System.out.println(tmpVec + " deg/s");
 			break;
 		case 'c':
+			System.out.println(
+					"A0=" + local.analog.getA0() + " mV,\t" +
+					"A1=" + local.analog.getA1() + " mV,\t" +
+					"A2=" + local.analog.getA2() + " mV,\t" +
+					"A3=" + local.analog.getA3() + " mV"
+					);
+			break;
 		case 'C':
-			Analog a = sensors.analog;
-			System.out.println("A0=" + a.getA0() + " mV,\tA1=" + a.getA1() + " mV,\tA2=" + a.getA2() + " mV,\tA3=" + a.getA3() + " mV");
+			System.out.println(
+					"A0=" + remote.analog.getA0() + " mV,\t" +
+					"A1=" + remote.analog.getA1() + " mV,\t" +
+					"A2=" + remote.analog.getA2() + " mV,\t" +
+					"A3=" + remote.analog.getA3() + " mV"
+					);
 			break;
 		case 'g':
+			System.out.println(
+					"latitude="  + local.gps.getLatitude() + ",\t" +
+					"longitude=" + local.gps.getLongitude() + ",\t" +
+					"altitude="  + local.gps.getAltitude() + " m MSL"
+					);
+			break;
 		case 'G':
-			GPS gps = sensors.gps;
-			System.out.println("latitude=" + gps.getLatitude() + ", longitude=" + gps.getLongitude() + ", altitude=" + gps.getAltitude() + " m MSL");
+			System.out.println(
+					"latitude="  + remote.gps.getLatitude() + ",\t" +
+					"longitude=" + remote.gps.getLongitude() + ",\t" +
+					"altitude="  + remote.gps.getAltitude() + " m MSL"
+					);
 			break;
 		case 's':
-		case 'S':
 			if (radio == null) {
 				setupRadio();
 			} else {
@@ -446,14 +518,12 @@ public class Application {
 			}
 			break;
 		case 'r':
-		case 'R':
 			if (radio != null) {
 				radio.toggle();
 				System.out.println("Radio is now " + (radio.isOn() ? "ON" : "OFF") + ".");
 			}
 			break;
 		case 'q':
-		case 'Q':
 			shutdown();
 			break;
 		}
@@ -469,14 +539,7 @@ public class Application {
 		manager.clear();
 		
 		System.out.println("Closing log streams.");
-		try {
-			if (adxl345log != null) adxl345log.close();
-			if (itg3205log != null) itg3205log.close();
-			if (ms5611log != null) ms5611log.close();
-			if (ads1115log != null) ads1115log.close();
-		} catch (IOException e) {
-			System.err.println(e);
-		}
+		log.close();
 		
 		System.exit(0);
 	}

@@ -2,6 +2,7 @@ package edu.sdsu.rocket.pi.devices;
 
 import java.io.IOException;
 
+import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
@@ -320,6 +321,10 @@ public class ADS1115 implements Device {
 	 */
 	private final byte[] BUFFER = new byte[2];
 
+	public ADS1115() {
+		this(I2CBus.BUS_1);
+	}
+	
     public ADS1115(int bus) {
     	this(bus, ADDR_DEFAULT);
 	}

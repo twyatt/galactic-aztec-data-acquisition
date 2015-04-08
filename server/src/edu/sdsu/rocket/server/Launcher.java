@@ -2,8 +2,6 @@ package edu.sdsu.rocket.server;
 
 import java.io.IOException;
 
-import edu.sdsu.rocket.core.models.Sensors;
-
 public class Launcher {
 	
 	private static String[] args;
@@ -15,7 +13,7 @@ public class Launcher {
 	public static void main(String[] args) throws IOException {
 		Launcher.args = args;
 		
-		Application app = new Application(new Sensors());
+		Application app = new Application();
 		app.setup();
 		while (true) {
 			app.loop();

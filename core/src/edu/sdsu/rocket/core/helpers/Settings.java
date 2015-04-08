@@ -2,6 +2,7 @@ package edu.sdsu.rocket.core.helpers;
 
 public class Settings {
 	
+	public boolean test;
 	public LoggingSettings logging;
 	public ServerSettings server;
 	public DevicesSettings devices;
@@ -26,14 +27,12 @@ public class Settings {
 	
 	public static class XTend900Settings {
 		public boolean enabled;
+		public String mode;
 		public long sleep; // thread sleep (milliseconds)
 		public String device;
 		public int baud;
 		public int rfDataRate;
 		public int txPowerLevel;
-		public String sourceAddress;
-		public boolean autosetMY;
-		public String destinationAddress;
 		public int transmitOnly;
 	}
 	

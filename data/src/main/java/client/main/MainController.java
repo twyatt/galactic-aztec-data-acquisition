@@ -19,6 +19,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.ToggleButton;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 
@@ -44,12 +45,16 @@ public class MainController {
 	private static final String DISCONNECT = "Disconnect";
 	
 	private static final int PORT = 4444;
-	private final SensorClient client = new SensorClient(new Sensors());
+	private final Sensors local = new Sensors();
+	private final Sensors remote = new Sensors();
+	private final SensorClient client = new SensorClient(local, remote);
 	
 	@FXML private TextField hostTextField;
 	@FXML private Button connectButton;
 	@FXML private Slider frequencySlider;
 	@FXML private Label frequencyLabel;
+	@FXML private ToggleButton localSensorsButton;
+	@FXML private ToggleButton remoteSensorsButton;
 	@FXML private FlowPane gaugePane;
 	
 	private Gauge lox;
@@ -81,10 +86,11 @@ public class MainController {
 	public MainController() {
 		client.setListener(new SensorClient.SensorClientListener() {
 			@Override
-			public void onSensorsUpdated(final Sensors sensors) {
+			public void onSensorsUpdated() {
 				Platform.runLater(new Runnable() {
 					@Override
 					public void run() {
+						Sensors sensors = remoteSensorsButton.isSelected() ? remote : local;
 						updateSensors(sensors);
 					}
 				});
@@ -199,6 +205,25 @@ public class MainController {
 				.animated(false)
 				.decimals(1)
 				.build();
+	}
+	
+	@FXML
+	public void clearSensors() {
+		Platform.runLater(new Runnable() {
+			@Override
+			public void run() {
+				motor.setValue(0);
+				lox.setValue(0);
+				kerosene.setValue(0);
+				helium.setValue(0);
+				accelerometerXData.getData().clear();
+				accelerometerYData.getData().clear();
+				accelerometerZData.getData().clear();
+				gyroscopeXData.getData().clear();
+				gyroscopeYData.getData().clear();
+				gyroscopeZData.getData().clear();
+			}
+		});
 	}
 	
 	public void updateSensors(Sensors sensors) {

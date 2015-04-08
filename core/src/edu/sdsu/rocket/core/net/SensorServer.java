@@ -15,10 +15,12 @@ public class SensorServer {
 	
 	private DatagramServer server;
 	
-	private final Sensors sensors;
+	private final Sensors localSensors;
+	private final Sensors remoteSensors;
 	
-	public SensorServer(Sensors sensors) {
-		this.sensors = sensors;
+	public SensorServer(Sensors localSensors, Sensors remoteSensors) {
+		this.localSensors = localSensors;
+		this.remoteSensors = remoteSensors;
 	}
 	
 	public void start(int port) throws SocketException {
@@ -27,15 +29,16 @@ public class SensorServer {
 		}
 		
 		server = new DatagramServer();
-		server.setListener(new MessageHandler() {
+		server.setListener(new DatagramMessageHandler() {
 			@Override
-			public void onMessageReceived(Message message) {
+			public void onMessageReceived(DatagramMessage message) {
 				try {
 					switch (message.id) {
-					case Message.PING:
+					case DatagramMessage.PING:
 						// FIXME implement
 						break;
-					case Message.SENSOR:
+					case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
+					case DatagramMessage.SENSORS_REMOTE:
 						sendSensorResponse(message);
 						break;
 					}
@@ -54,15 +57,17 @@ public class SensorServer {
 		}
 	}
 	
-	private void sendSensorResponse(Message message) throws IOException {
+	private void sendSensorResponse(DatagramMessage message) throws IOException {
 		if (server == null) return;
 		
 		DatagramSocket socket = server.getSocket();
 		if (socket == null) return;
 		
+		Sensors sensors = message.id == DatagramMessage.SENSORS_REMOTE ? remoteSensors : localSensors;
+		
 		buffer.clear();
 		buffer.putInt(message.number);
-		buffer.put(Message.SENSOR);
+		buffer.put(message.id);
 		int mask = message.data == null || message.data.length == 0 ? Sensors.ALL_MASK : message.data[0];
 		buffer.put((byte) (mask & 0xFF));
 		sensors.toByteBuffer(buffer, mask);

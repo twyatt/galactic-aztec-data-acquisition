@@ -15,6 +15,12 @@ import edu.sdsu.rocket.pi.devices.DeviceManager.Device;
 
 public class XTend900 implements Device {
 	
+	public enum Mode {
+		POINT_TO_POINT, // default
+		POINT_TO_MULTIPOINT_BASE,
+		POINT_TO_MULTIPOINT_REMOTE,
+	}
+	
 	public enum Command {
 		ENTER_AT_COMMAND_MODE   ("+++"),
 		BOARD_VOLTAGE           ("AT%V"),
@@ -140,6 +146,8 @@ public class XTend900 implements Device {
 	private final GpioPinDigitalOutput txLed;
 	private final GpioPinDigitalOutput shdn;
 
+	private boolean isCommandMode;
+
 	public XTend900(Serial serial, Sensors sensors) {
 		this.serial = serial;
 		this.sensors = sensors;
@@ -153,6 +161,8 @@ public class XTend900 implements Device {
 	}
 	
 	public XTend900 enterATCommandMode() throws InterruptedException, IllegalStateException, IOException {
+		isCommandMode = true;
+		serial.flush();
 		Thread.sleep(500L);
 		String cmd = Command.ENTER_AT_COMMAND_MODE.text;
 		System.out.println(cmd + " [Enter AT Command Mode]");
@@ -166,6 +176,7 @@ public class XTend900 implements Device {
 		String cmd = Command.EXIT_AT_COMMAND_MODE.text;
 		System.out.println(cmd + " [Exit AT Command Mode]");
 		writeln(cmd);
+		isCommandMode = false;
 		return this;
 	}
 	
@@ -290,25 +301,31 @@ public class XTend900 implements Device {
 	}
 
 	@Override
-	public void loop() throws IOException {
-		if (isOn()) {
-			BUFFER.clear();
-			
-			BUFFER.put(START_BYTES);
-			int lengthPosition = BUFFER.position();
-			BUFFER.putInt(0); // length placeholder
-			
-			int start = BUFFER.position();
-			sensors.toByteBuffer(BUFFER);
-			int end = BUFFER.position();
-			int length = end - start;
-			
-			BUFFER.putInt(lengthPosition, length);
-			BUFFER.flip();
-			
-//			txLed.pulse(100L);
-			serial.write(BUFFER);
+	public void loop() throws IOException, InterruptedException {
+		if (isOn() && !isCommandMode) {
+			sendSensorData();
+		} else {
+			Thread.sleep(250L);
 		}
+	}
+
+	private void sendSensorData() throws IllegalStateException, IOException {
+		BUFFER.clear();
+		
+		BUFFER.put(START_BYTES);
+		int lengthPosition = BUFFER.position();
+		BUFFER.putInt(0); // length placeholder
+		
+		int start = BUFFER.position();
+		sensors.toByteBuffer(BUFFER);
+		int end = BUFFER.position();
+		int length = end - start;
+		
+		BUFFER.putInt(lengthPosition, length);
+		BUFFER.flip();
+		
+//		txLed.pulse(100L);
+		serial.write(BUFFER);
 	}
 
 }

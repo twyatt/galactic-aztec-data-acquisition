@@ -55,12 +55,6 @@ project(":server") {
     }
 }
 
-project(":radio") {
-    dependencies {
-        compile project(":pi");
-    }
-}
-
 project(":data") {
     dependencies {
         compile project(":core");

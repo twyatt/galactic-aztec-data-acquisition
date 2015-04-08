@@ -3,6 +3,7 @@ package edu.sdsu.rocket.pi.devices;
 import java.io.IOException;
 
 import com.i2cdevlib.I2Cdev;
+import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
@@ -13,7 +14,7 @@ public class ITG3205 implements Device {
 	public interface GyroscopeListener {
 		public void onValues(short x, short y, short z);
 	}
-	private GyroscopeListener listener;
+	protected GyroscopeListener listener;
 	public void setListener(GyroscopeListener listener) {
 		this.listener = listener;
 	}
@@ -128,6 +129,10 @@ public class ITG3205 implements Device {
 	 */
     private final byte[] BUFFER = new byte[6];
 
+    public ITG3205() {
+    	this(I2CBus.BUS_1);
+    }
+    
     public ITG3205(int bus) {
     	this(bus, ITG3205_DEFAULT_ADDRESS);
 	}

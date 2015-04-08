@@ -3,6 +3,7 @@ package edu.sdsu.rocket.pi.devices;
 import java.io.IOException;
 
 import com.i2cdevlib.I2Cdev;
+import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
@@ -13,7 +14,7 @@ public class ADXL345 implements Device {
 	public interface AccelerometerListener {
 		public void onValues(short x, short y, short z);
 	}
-	private AccelerometerListener listener;
+	protected AccelerometerListener listener;
 	public void setListener(AccelerometerListener listener) {
 		this.listener = listener;
 	}
@@ -196,6 +197,10 @@ public class ADXL345 implements Device {
      * the full resolution bit occurs.
      */
     private boolean resolution;
+    
+    public ADXL345() {
+    	this(I2CBus.BUS_1);
+    }
     
     public ADXL345(int bus) {
     	this(bus, ADXL345_DEFAULT_ADDRESS);

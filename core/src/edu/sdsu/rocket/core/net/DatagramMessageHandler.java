@@ -3,7 +3,7 @@ package edu.sdsu.rocket.core.net;
 import java.net.DatagramPacket;
 import java.nio.ByteBuffer;
 
-public abstract class MessageHandler implements DatagramPacketListener {
+public abstract class DatagramMessageHandler implements DatagramPacketListener {
 	
 	/**
 	 * Minimum packet size as per Communications Protocol document:
@@ -13,7 +13,7 @@ public abstract class MessageHandler implements DatagramPacketListener {
 	 */
 	private static final int MINIMUM_PACKET_SIZE = 5; // bytes
 	
-	public abstract void onMessageReceived(Message message);
+	public abstract void onMessageReceived(DatagramMessage message);
 
 	@Override
 	public void onPacketReceived(DatagramPacket packet) {
@@ -21,7 +21,7 @@ public abstract class MessageHandler implements DatagramPacketListener {
 			return; // drop packet
 		}
 		
-		Message message = new Message();
+		DatagramMessage message = new DatagramMessage();
 		message.address = packet.getSocketAddress();
 		
 		ByteBuffer buffer = ByteBuffer.wrap(packet.getData(), 0, packet.getLength());

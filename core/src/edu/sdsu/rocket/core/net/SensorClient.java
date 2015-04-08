@@ -12,8 +12,18 @@ import edu.sdsu.rocket.core.models.Sensors;
 
 public class SensorClient {
 	
+	public enum Mode {
+		LOCAL (DatagramMessage.SENSORS_LOCAL), // default
+		REMOTE(DatagramMessage.SENSORS_REMOTE),
+		;
+		byte value;
+		Mode(byte value) {
+			this.value = value;
+		}
+	}
+	
 	public interface SensorClientListener {
-		public void onSensorsUpdated(Sensors sensors);
+		public void onSensorsUpdated();
 	}
 	
 	private static final int BUFFER_SIZE = 128; // bytes
@@ -28,15 +38,23 @@ public class SensorClient {
 	private int requestNumber; // message request number
 	private int responseNumber; // message response number
 	
-	private final Sensors sensors;
 	private SensorClientListener listener;
 	
-	public SensorClient(Sensors sensors) {
-		this.sensors = sensors;
+	private Mode mode = Mode.LOCAL;
+	private final Sensors localSensors;
+	private final Sensors remoteSensors;
+	
+	public SensorClient(Sensors localSensors, Sensors remoteSensors) {
+		this.localSensors = localSensors;
+		this.remoteSensors = remoteSensors;
 	}
 	
 	public void setListener(SensorClientListener listener) {
 		this.listener = listener;
+	}
+	
+	public void setMode(Mode mode) {
+		this.mode = mode;
 	}
 
 	public void setFrequency(float frequency) {
@@ -61,14 +79,15 @@ public class SensorClient {
 		}
 		
 		client = new DatagramClient(address);
-		client.setListener(new MessageHandler() {
+		client.setListener(new DatagramMessageHandler() {
 			@Override
-			public void onMessageReceived(Message message) {
+			public void onMessageReceived(DatagramMessage message) {
 				switch (message.id) {
-				case Message.PING:
+				case DatagramMessage.PING:
 					// FIXME implement
 					break;
-				case Message.SENSOR:
+				case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
+				case DatagramMessage.SENSORS_REMOTE:
 					onSensorData(message);
 					break;
 				}
@@ -120,7 +139,7 @@ public class SensorClient {
 	}
 	
 	public void sendSensorRequest() throws IOException {
-		sendMessage(Message.SENSOR);
+		sendMessage(mode.value);
 	}
 	
 	public void sendMessage(byte id) throws IOException {
@@ -142,7 +161,7 @@ public class SensorClient {
 		client.send(buffer.array(), buffer.position());
 	}
 	
-	protected void onSensorData(Message message) {
+	protected void onSensorData(DatagramMessage message) {
 		if (message.number != 0) {
 			if (message.number < responseNumber || message.number > requestNumber) {
 				return; // drop packet
@@ -151,19 +170,17 @@ public class SensorClient {
 			}
 		}
 		
-		switch (message.id) {
-		case Message.SENSOR:
-			try {
-				ByteBuffer buffer = ByteBuffer.wrap(message.data);
-				int mask = buffer.get();
-				sensors.fromByteBuffer(buffer, mask);
-				
-				if (listener != null) {
-					listener.onSensorsUpdated(sensors);
-				}
-			} catch (BufferUnderflowException e) {
-				System.err.println(e);
+		Sensors sensors = message.id == DatagramMessage.SENSORS_REMOTE ? remoteSensors : localSensors;
+		try {
+			ByteBuffer buffer = ByteBuffer.wrap(message.data);
+			int mask = buffer.get();
+			sensors.fromByteBuffer(buffer, mask);
+			
+			if (listener != null) {
+				listener.onSensorsUpdated();
 			}
+		} catch (BufferUnderflowException e) {
+			System.err.println(e);
 		}
 	}
 	

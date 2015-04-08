@@ -2,6 +2,7 @@ package edu.sdsu.rocket.pi.devices;
 
 import java.io.IOException;
 
+import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
@@ -41,7 +42,7 @@ public class MS5611 implements Device {
 	private long D1 = 0, D2 = 0;
 	private int i = 0;
 	
-	private BarometerListener listener;
+	protected BarometerListener listener;
 	public void setListener(BarometerListener listener) {
 		this.listener = listener;
 	}
@@ -163,6 +164,10 @@ public class MS5611 implements Device {
 	 */
     private final byte[] BUFFER = new byte[3];
 
+    public MS5611() {
+    	this(I2CBus.BUS_1);
+    }
+    
     public MS5611(int bus) {
     	this(bus, MS5611_DEFAULT_ADDRESS);
 	}
