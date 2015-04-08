@@ -26,6 +26,7 @@ public class Settings {
 	}
 	
 	public static class XTend900Settings {
+		public int id;
 		public boolean enabled;
 		public String mode;
 		public long sleep; // thread sleep (milliseconds)

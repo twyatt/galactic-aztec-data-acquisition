@@ -55,7 +55,7 @@ project(":server") {
     }
 }
 
-project(":data") {
+project(":client") {
     dependencies {
         compile project(":core");
         

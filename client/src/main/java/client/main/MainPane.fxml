@@ -5,7 +5,7 @@
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="400.0" prefWidth="800.0" stylesheets="@main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" stylesheets="@main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
    <top>
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <items>
@@ -16,18 +16,22 @@
             <Label text="Sensors" />
             <HBox>
                <children>
-                  <ToggleButton fx:id="localSensorsButton" mnemonicParsing="false" onAction="#clearSensors" selected="true" styleClass="left-pill" text="Local">
+                  <ToggleButton fx:id="localButton" mnemonicParsing="false" onAction="#clearSensors" selected="true" styleClass="left-pill" text="Local">
                      <toggleGroup>
                         <ToggleGroup fx:id="sensorsGroup" />
                      </toggleGroup>
                   </ToggleButton>
-                  <ToggleButton fx:id="remoteSensorsButton" mnemonicParsing="false" onAction="#clearSensors" styleClass="right-pill" text="Remote" toggleGroup="$sensorsGroup" />
+                  <ToggleButton fx:id="remote1Button" mnemonicParsing="false" onAction="#clearSensors" styleClass="center-pill" text="Remote 1" toggleGroup="$sensorsGroup" />
+                  <ToggleButton fx:id="remote2Button" mnemonicParsing="false" onAction="#clearSensors" styleClass="right-pill" text="Remote 2" toggleGroup="$sensorsGroup" />
                </children>
             </HBox>
             <Separator />
             <Label text="Frequency" />
             <Slider fx:id="frequencySlider" value="1.0" />
             <Label fx:id="frequencyLabel" text="1 Hz" />
+            <Separator orientation="VERTICAL" />
+            <Label text="Latency" />
+            <Label fx:id="latencyLabel" text="?" />
          </items>
       </ToolBar>
    </top>

@@ -13,21 +13,25 @@ import edu.sdsu.rocket.core.models.Sensors;
 public class SensorClient {
 	
 	public enum Mode {
-		LOCAL (DatagramMessage.SENSORS_LOCAL), // default
-		REMOTE(DatagramMessage.SENSORS_REMOTE),
+		LOCAL  (DatagramMessage.SENSORS_LOCAL), // default
+		REMOTE1(DatagramMessage.SENSORS_REMOTE1),
+		REMOTE2(DatagramMessage.SENSORS_REMOTE2),
 		;
 		byte value;
 		Mode(byte value) {
 			this.value = value;
 		}
 	}
+	private Mode mode = Mode.LOCAL;
 	
 	public interface SensorClientListener {
 		public void onSensorsUpdated();
+		public void onPingResponse(long latency);
 	}
 	
-	private static final int BUFFER_SIZE = 128; // bytes
-	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+	private static final int BUFFER_SIZE = 1024; // bytes
+	private final ByteBuffer MESSAGE_BUFFER = ByteBuffer.allocate(BUFFER_SIZE);
+	private final ByteBuffer PING_BUFFER = ByteBuffer.allocate(BUFFER_SIZE);
 	
 	private DatagramClient client;
 	
@@ -37,16 +41,18 @@ public class SensorClient {
 	
 	private int requestNumber; // message request number
 	private int responseNumber; // message response number
+	private long latency; // round-trip time in nanoseconds
 	
 	private SensorClientListener listener;
 	
-	private Mode mode = Mode.LOCAL;
-	private final Sensors localSensors;
-	private final Sensors remoteSensors;
+	private final Sensors local;
+	private final Sensors remote1;
+	private final Sensors remote2;
 	
-	public SensorClient(Sensors localSensors, Sensors remoteSensors) {
-		this.localSensors = localSensors;
-		this.remoteSensors = remoteSensors;
+	public SensorClient(Sensors local, Sensors remote1, Sensors remote2) {
+		this.local = local;
+		this.remote1 = remote1;
+		this.remote2 = remote2;
 	}
 	
 	public void setListener(SensorClientListener listener) {
@@ -84,10 +90,11 @@ public class SensorClient {
 			public void onMessageReceived(DatagramMessage message) {
 				switch (message.id) {
 				case DatagramMessage.PING:
-					// FIXME implement
+					onPingResponse(message);
 					break;
 				case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
-				case DatagramMessage.SENSORS_REMOTE:
+				case DatagramMessage.SENSORS_REMOTE1: // fall thru intentional
+				case DatagramMessage.SENSORS_REMOTE2:
 					onSensorData(message);
 					break;
 				}
@@ -138,6 +145,15 @@ public class SensorClient {
 		runnable.resume();
 	}
 	
+	public void sendPingRequest() throws IOException {
+		PING_BUFFER.clear();
+		PING_BUFFER.putInt(++requestNumber);
+		PING_BUFFER.put(DatagramMessage.PING);
+		PING_BUFFER.putLong(System.nanoTime());
+		
+		client.send(PING_BUFFER.array(), PING_BUFFER.position());
+	}
+	
 	public void sendSensorRequest() throws IOException {
 		sendMessage(mode.value);
 	}
@@ -151,14 +167,26 @@ public class SensorClient {
 	}
 	
 	public void sendMessage(byte id, byte[] data) throws IOException {
-		buffer.clear();
-		buffer.putInt(++requestNumber);
-		buffer.put(id);
+		MESSAGE_BUFFER.clear();
+		MESSAGE_BUFFER.putInt(++requestNumber);
+		MESSAGE_BUFFER.put(id);
 		if (data != null) {
-			buffer.put(data);
+			MESSAGE_BUFFER.put(data);
 		}
 		
-		client.send(buffer.array(), buffer.position());
+		client.send(MESSAGE_BUFFER.array(), MESSAGE_BUFFER.position());
+	}
+	
+	protected void onPingResponse(DatagramMessage message) {
+		try {
+			ByteBuffer buf = ByteBuffer.wrap(message.data);
+			latency = System.nanoTime() - buf.getLong();
+			if (listener != null) {
+				listener.onPingResponse(latency);
+			}
+		} catch (BufferUnderflowException e) {
+			System.err.println(e);
+		}
 	}
 	
 	protected void onSensorData(DatagramMessage message) {
@@ -170,7 +198,19 @@ public class SensorClient {
 			}
 		}
 		
-		Sensors sensors = message.id == DatagramMessage.SENSORS_REMOTE ? remoteSensors : localSensors;
+		Sensors sensors;
+		switch (message.id) {
+		case DatagramMessage.SENSORS_REMOTE1:
+			sensors = remote1;
+			break;
+		case DatagramMessage.SENSORS_REMOTE2:
+			sensors = remote2;
+			break;
+		default:
+			sensors = local;
+			break;
+		}
+		
 		try {
 			ByteBuffer buffer = ByteBuffer.wrap(message.data);
 			int mask = buffer.get();

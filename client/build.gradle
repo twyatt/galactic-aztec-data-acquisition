@@ -4,6 +4,6 @@ sourceCompatibility = 1.7
 
 eclipse {
     project {
-        name = appName + "-data"
+        name = appName + "-client"
     }
 }

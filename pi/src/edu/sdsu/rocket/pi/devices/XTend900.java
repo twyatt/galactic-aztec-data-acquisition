@@ -147,6 +147,8 @@ public class XTend900 implements Device {
 	private final GpioPinDigitalOutput shdn;
 
 	private boolean isCommandMode;
+	
+	private int id;
 
 	public XTend900(Serial serial, Sensors sensors) {
 		this.serial = serial;
@@ -158,6 +160,11 @@ public class XTend900 implements Device {
 		txLed = gpio.provisionDigitalOutputPin(RaspiPin.GPIO_21, "TX_LED", PinState.LOW);
 		
 		txLed.pulse(1000L);
+	}
+	
+	public XTend900 setId(int id) {
+		this.id = id;
+		return this;
 	}
 	
 	public XTend900 enterATCommandMode() throws InterruptedException, IllegalStateException, IOException {
@@ -317,6 +324,7 @@ public class XTend900 implements Device {
 		BUFFER.putInt(0); // length placeholder
 		
 		int start = BUFFER.position();
+		BUFFER.putInt(id);
 		sensors.toByteBuffer(BUFFER);
 		int end = BUFFER.position();
 		int length = end - start;

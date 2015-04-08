@@ -19,7 +19,9 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Slider;
 import javafx.scene.control.TextField;
+import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
+import javafx.scene.control.ToggleGroup;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 
@@ -32,12 +34,15 @@ import com.badlogic.gdx.math.Vector3;
 import edu.sdsu.rocket.core.models.Pressures;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.core.net.SensorClient;
+import edu.sdsu.rocket.core.net.SensorClient.Mode;
 import eu.hansolo.enzo.common.Section;
 import eu.hansolo.enzo.gauge.Gauge;
 import eu.hansolo.enzo.gauge.GaugeBuilder;
 
 @SuppressWarnings("deprecation")
 public class MainController {
+	
+	private static final long NANOSECONDS_PER_MILLISECOND = 1000000L;
 	
 	private static final boolean DEBUG_SENSORS = false;
 	
@@ -46,15 +51,20 @@ public class MainController {
 	
 	private static final int PORT = 4444;
 	private final Sensors local = new Sensors();
-	private final Sensors remote = new Sensors();
-	private final SensorClient client = new SensorClient(local, remote);
+	private final Sensors remote1 = new Sensors();
+	private final Sensors remote2 = new Sensors();
+	private final SensorClient client = new SensorClient(local, remote1, remote2);
+	private Thread pingThread;
 	
 	@FXML private TextField hostTextField;
 	@FXML private Button connectButton;
 	@FXML private Slider frequencySlider;
 	@FXML private Label frequencyLabel;
-	@FXML private ToggleButton localSensorsButton;
-	@FXML private ToggleButton remoteSensorsButton;
+	@FXML private ToggleGroup sensorsGroup;
+	@FXML private ToggleButton localButton;
+	@FXML private ToggleButton remote1Button;
+	@FXML private ToggleButton remote2Button;
+	@FXML private Label latencyLabel;
 	@FXML private FlowPane gaugePane;
 	
 	private Gauge lox;
@@ -75,7 +85,7 @@ public class MainController {
 	private Series<Number, Number> gyroscopeXData = new XYChart.Series<Number, Number>();
 	private Series<Number, Number> gyroscopeYData = new XYChart.Series<Number, Number>();
 	private Series<Number, Number> gyroscopeZData = new XYChart.Series<Number, Number>();
-	
+
 	private static final Vector3 tmpVec = new Vector3();
 	
 	/**
@@ -86,11 +96,29 @@ public class MainController {
 	public MainController() {
 		client.setListener(new SensorClient.SensorClientListener() {
 			@Override
+			public void onPingResponse(final long latency) {
+				Platform.runLater(new Runnable() {
+					@Override
+					public void run() {
+						updateLatency((float) latency / NANOSECONDS_PER_MILLISECOND);
+					}
+				});
+			}
+			
+			@Override
 			public void onSensorsUpdated() {
 				Platform.runLater(new Runnable() {
 					@Override
 					public void run() {
-						Sensors sensors = remoteSensorsButton.isSelected() ? remote : local;
+						Sensors sensors;
+						Toggle selected = sensorsGroup.getSelectedToggle();
+						if (remote1Button.equals(selected)) {
+							sensors = remote1;
+						} else if (remote2Button.equals(selected)) {
+							sensors = remote2;
+						} else {
+							sensors = local;
+						}
 						updateSensors(sensors);
 					}
 				});
@@ -207,8 +235,23 @@ public class MainController {
 				.build();
 	}
 	
+	protected void updateLatency(float latency) {
+		latencyLabel.setText("" + latency + " ms");
+	}
+	
 	@FXML
 	public void clearSensors() {
+		SensorClient.Mode mode;
+		Toggle selected = sensorsGroup.getSelectedToggle();
+		if (remote1Button.equals(selected)) {
+			mode = Mode.REMOTE1;
+		} else if (remote2Button.equals(selected)) {
+			mode = Mode.REMOTE2;
+		} else {
+			mode = Mode.LOCAL;
+		}
+		client.setMode(mode);
+		
 		Platform.runLater(new Runnable() {
 			@Override
 			public void run() {
@@ -284,6 +327,28 @@ public class MainController {
 				InetAddress addr = InetAddress.getByName(hostTextField.getText());
 				client.setFrequency((float) frequencySlider.getValue());
 				client.start(addr, PORT);
+				
+				pingThread = new Thread(new Runnable() {
+					@Override
+					public void run() {
+						while (!Thread.currentThread().isInterrupted()) {
+							try {
+								Thread.sleep(1000L);
+							} catch (InterruptedException e) {
+								System.err.println(e);
+								return;
+							}
+							
+							try {
+								client.sendPingRequest();
+							} catch (IOException e) {
+								System.err.println(e);
+							}
+						}
+					}
+				});
+				pingThread.start();
+				
 				connectButton.setText(DISCONNECT);
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -294,7 +359,17 @@ public class MainController {
 					.showException(e);
 			}
 		} else {
+			pingThread.interrupt();
+			try {
+				pingThread.join();
+			} catch (InterruptedException e) {
+				System.err.println(e);
+			}
+			pingThread = null;
+			
 			client.stop();
+			
+			latencyLabel.setText("?");
 			connectButton.setText(CONNECT);
 		}
 		

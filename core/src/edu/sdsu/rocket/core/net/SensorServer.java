@@ -10,17 +10,20 @@ import edu.sdsu.rocket.core.models.Sensors;
 
 public class SensorServer {
 
-	private static final int BUFFER_SIZE = 128; // bytes
-	private final ByteBuffer buffer = ByteBuffer.allocate(BUFFER_SIZE);
+	private static final int BUFFER_SIZE = 1024; // bytes
+	private final ByteBuffer PING_BUFFER = ByteBuffer.allocate(BUFFER_SIZE);
+	private final ByteBuffer MESSAGE_BUFFER = ByteBuffer.allocate(BUFFER_SIZE);
 	
 	private DatagramServer server;
 	
-	private final Sensors localSensors;
-	private final Sensors remoteSensors;
+	private final Sensors local;
+	private final Sensors remote1;
+	private final Sensors remote2;
 	
-	public SensorServer(Sensors localSensors, Sensors remoteSensors) {
-		this.localSensors = localSensors;
-		this.remoteSensors = remoteSensors;
+	public SensorServer(Sensors localSensors, Sensors remote1, Sensors remote2) {
+		this.local = localSensors;
+		this.remote1 = remote1;
+		this.remote2 = remote2;
 	}
 	
 	public void start(int port) throws SocketException {
@@ -35,10 +38,11 @@ public class SensorServer {
 				try {
 					switch (message.id) {
 					case DatagramMessage.PING:
-						// FIXME implement
+						sendPingResponse(message);
 						break;
 					case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
-					case DatagramMessage.SENSORS_REMOTE:
+					case DatagramMessage.SENSORS_REMOTE1: // fall thru intentional
+					case DatagramMessage.SENSORS_REMOTE2:
 						sendSensorResponse(message);
 						break;
 					}
@@ -57,23 +61,52 @@ public class SensorServer {
 		}
 	}
 	
-	private void sendSensorResponse(DatagramMessage message) throws IOException {
+	protected void sendPingResponse(DatagramMessage message) throws IOException {
 		if (server == null) return;
 		
 		DatagramSocket socket = server.getSocket();
 		if (socket == null) return;
 		
-		Sensors sensors = message.id == DatagramMessage.SENSORS_REMOTE ? remoteSensors : localSensors;
+		PING_BUFFER.clear();
+		PING_BUFFER.putInt(message.number);
+		PING_BUFFER.put(message.id);
+		PING_BUFFER.put(message.data);
 		
-		buffer.clear();
-		buffer.putInt(message.number);
-		buffer.put(message.id);
+		byte[] buf = PING_BUFFER.array();
+		int length = PING_BUFFER.position();
+		DatagramPacket packet = new DatagramPacket(buf, length, message.address);
+		
+		socket.send(packet);
+	}
+	
+	protected void sendSensorResponse(DatagramMessage message) throws IOException {
+		if (server == null) return;
+		
+		DatagramSocket socket = server.getSocket();
+		if (socket == null) return;
+		
+		Sensors sensors;
+		switch (message.id) {
+		case DatagramMessage.SENSORS_REMOTE1:
+			sensors = remote1;
+			break;
+		case DatagramMessage.SENSORS_REMOTE2:
+			sensors = remote2;
+			break;
+		default:
+			sensors = local;
+			break;
+		}
+		
+		MESSAGE_BUFFER.clear();
+		MESSAGE_BUFFER.putInt(message.number);
+		MESSAGE_BUFFER.put(message.id);
 		int mask = message.data == null || message.data.length == 0 ? Sensors.ALL_MASK : message.data[0];
-		buffer.put((byte) (mask & 0xFF));
-		sensors.toByteBuffer(buffer, mask);
+		MESSAGE_BUFFER.put((byte) (mask & 0xFF));
+		sensors.toByteBuffer(MESSAGE_BUFFER, mask);
 		
-		byte[] buf = buffer.array();
-		int length = buffer.position();
+		byte[] buf = MESSAGE_BUFFER.array();
+		int length = MESSAGE_BUFFER.position();
 		DatagramPacket packet = new DatagramPacket(buf, length, message.address);
 		
 		socket.send(packet);
