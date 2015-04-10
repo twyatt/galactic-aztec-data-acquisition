@@ -13,9 +13,8 @@ import edu.sdsu.rocket.core.models.Sensors;
 public class SensorClient {
 	
 	public enum Mode {
-		LOCAL  (DatagramMessage.SENSORS_LOCAL), // default
-		REMOTE1(DatagramMessage.SENSORS_REMOTE1),
-		REMOTE2(DatagramMessage.SENSORS_REMOTE2),
+		LOCAL (DatagramMessage.SENSORS_LOCAL), // default
+		REMOTE(DatagramMessage.SENSORS_REMOTE),
 		;
 		byte value;
 		Mode(byte value) {
@@ -46,13 +45,11 @@ public class SensorClient {
 	private SensorClientListener listener;
 	
 	private final Sensors local;
-	private final Sensors remote1;
-	private final Sensors remote2;
+	private final Sensors remote;
 	
-	public SensorClient(Sensors local, Sensors remote1, Sensors remote2) {
+	public SensorClient(Sensors local, Sensors remote) {
 		this.local = local;
-		this.remote1 = remote1;
-		this.remote2 = remote2;
+		this.remote = remote;
 	}
 	
 	public void setListener(SensorClientListener listener) {
@@ -93,8 +90,7 @@ public class SensorClient {
 					onPingResponse(message);
 					break;
 				case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
-				case DatagramMessage.SENSORS_REMOTE1: // fall thru intentional
-				case DatagramMessage.SENSORS_REMOTE2:
+				case DatagramMessage.SENSORS_REMOTE: // fall thru intentional
 					onSensorData(message);
 					break;
 				}
@@ -200,11 +196,8 @@ public class SensorClient {
 		
 		Sensors sensors;
 		switch (message.id) {
-		case DatagramMessage.SENSORS_REMOTE1:
-			sensors = remote1;
-			break;
-		case DatagramMessage.SENSORS_REMOTE2:
-			sensors = remote2;
+		case DatagramMessage.SENSORS_REMOTE:
+			sensors = remote;
 			break;
 		default:
 			sensors = local;

@@ -4,6 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import java.lang.*?>
 <?import javafx.scene.layout.*?>
+<?import com.lynden.gmapsfx.*?>
 
 <BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" stylesheets="@main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
    <top>
@@ -21,8 +22,7 @@
                         <ToggleGroup fx:id="sensorsGroup" />
                      </toggleGroup>
                   </ToggleButton>
-                  <ToggleButton fx:id="remote1Button" mnemonicParsing="false" onAction="#clearSensors" styleClass="center-pill" text="Remote 1" toggleGroup="$sensorsGroup" />
-                  <ToggleButton fx:id="remote2Button" mnemonicParsing="false" onAction="#clearSensors" styleClass="right-pill" text="Remote 2" toggleGroup="$sensorsGroup" />
+                  <ToggleButton fx:id="remoteButton" mnemonicParsing="false" onAction="#clearSensors" styleClass="right-pill" text="Remote" toggleGroup="$sensorsGroup" />
                </children>
             </HBox>
             <Separator />
@@ -36,9 +36,23 @@
       </ToolBar>
    </top>
    <center>
-      <FlowPane fx:id="gaugePane" hgap="5.0" prefHeight="200.0" prefWidth="200.0" vgap="5.0" BorderPane.alignment="CENTER">
-         <BorderPane.margin>
-            <Insets bottom="5.0" left="5.0" right="5.0" top="5.0" />
-         </BorderPane.margin></FlowPane>
+      <TabPane prefHeight="200.0" prefWidth="200.0" tabClosingPolicy="UNAVAILABLE" BorderPane.alignment="CENTER">
+        <tabs>
+          <Tab text="Sensors">
+               <content>
+                  <FlowPane fx:id="gaugePane" hgap="5.0" prefHeight="200.0" prefWidth="200.0" vgap="5.0" />
+               </content>
+          </Tab>
+          <Tab text="GPS">
+               <content>
+                  <BorderPane prefHeight="200.0" prefWidth="200.0">
+                    <center>
+                      <GoogleMapView fx:id="mapView" prefHeight="400" prefWidth="400" />
+                    </center>
+                  </BorderPane>
+               </content>
+          </Tab>
+        </tabs>
+      </TabPane>
    </center>
 </BorderPane>

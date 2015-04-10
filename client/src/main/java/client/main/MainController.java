@@ -30,6 +30,12 @@ import org.controlsfx.dialog.Dialog;
 import org.controlsfx.dialog.Dialogs;
 
 import com.badlogic.gdx.math.Vector3;
+import com.lynden.gmapsfx.GoogleMapView;
+import com.lynden.gmapsfx.MapComponentInitializedListener;
+import com.lynden.gmapsfx.javascript.object.GoogleMap;
+import com.lynden.gmapsfx.javascript.object.LatLong;
+import com.lynden.gmapsfx.javascript.object.MapOptions;
+import com.lynden.gmapsfx.javascript.object.MapTypeIdEnum;
 
 import edu.sdsu.rocket.core.models.Pressures;
 import edu.sdsu.rocket.core.models.Sensors;
@@ -51,9 +57,8 @@ public class MainController {
 	
 	private static final int PORT = 4444;
 	private final Sensors local = new Sensors();
-	private final Sensors remote1 = new Sensors();
-	private final Sensors remote2 = new Sensors();
-	private final SensorClient client = new SensorClient(local, remote1, remote2);
+	private final Sensors remote = new Sensors();
+	private final SensorClient client = new SensorClient(local, remote);
 	private Thread pingThread;
 	
 	@FXML private TextField hostTextField;
@@ -62,10 +67,13 @@ public class MainController {
 	@FXML private Label frequencyLabel;
 	@FXML private ToggleGroup sensorsGroup;
 	@FXML private ToggleButton localButton;
-	@FXML private ToggleButton remote1Button;
-	@FXML private ToggleButton remote2Button;
+	@FXML private ToggleButton remoteButton;
 	@FXML private Label latencyLabel;
 	@FXML private FlowPane gaugePane;
+	
+	@FXML
+    private GoogleMapView mapView;
+	private GoogleMap map;
 	
 	private Gauge lox;
 	private Gauge kerosene;
@@ -112,10 +120,8 @@ public class MainController {
 					public void run() {
 						Sensors sensors;
 						Toggle selected = sensorsGroup.getSelectedToggle();
-						if (remote1Button.equals(selected)) {
-							sensors = remote1;
-						} else if (remote2Button.equals(selected)) {
-							sensors = remote2;
+						if (remoteButton.equals(selected)) {
+							sensors = remote;
 						} else {
 							sensors = local;
 						}
@@ -142,8 +148,25 @@ public class MainController {
             	client.setFrequency(value);
             }
         });
-
+		
 		createSensors();
+		
+		mapView.addMapInializedListener(new MapComponentInitializedListener() {
+			@Override
+			public void mapInitialized() {
+		        MapOptions mapOptions = new MapOptions();
+		        mapOptions.center(new LatLong(47.6097, -122.3331))
+		                .mapType(MapTypeIdEnum.TERRAIN)
+		                .overviewMapControl(false)
+		                .panControl(false)
+		                .rotateControl(false)
+		                .scaleControl(false)
+		                .streetViewControl(false)
+		                .zoomControl(false)
+		                .zoom(50);
+		        map = mapView.createMap(mapOptions);
+			}
+		});
 	}
 
 	private void createSensors() {
@@ -243,10 +266,8 @@ public class MainController {
 	public void clearSensors() {
 		SensorClient.Mode mode;
 		Toggle selected = sensorsGroup.getSelectedToggle();
-		if (remote1Button.equals(selected)) {
-			mode = Mode.REMOTE1;
-		} else if (remote2Button.equals(selected)) {
-			mode = Mode.REMOTE2;
+		if (remoteButton.equals(selected)) {
+			mode = Mode.REMOTE;
 		} else {
 			mode = Mode.LOCAL;
 		}

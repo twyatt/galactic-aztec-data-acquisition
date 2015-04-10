@@ -17,13 +17,11 @@ public class SensorServer {
 	private DatagramServer server;
 	
 	private final Sensors local;
-	private final Sensors remote1;
-	private final Sensors remote2;
+	private final Sensors remote;
 	
-	public SensorServer(Sensors localSensors, Sensors remote1, Sensors remote2) {
+	public SensorServer(Sensors localSensors, Sensors remote) {
 		this.local = localSensors;
-		this.remote1 = remote1;
-		this.remote2 = remote2;
+		this.remote = remote;
 	}
 	
 	public void start(int port) throws SocketException {
@@ -41,8 +39,7 @@ public class SensorServer {
 						sendPingResponse(message);
 						break;
 					case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
-					case DatagramMessage.SENSORS_REMOTE1: // fall thru intentional
-					case DatagramMessage.SENSORS_REMOTE2:
+					case DatagramMessage.SENSORS_REMOTE: // fall thru intentional
 						sendSensorResponse(message);
 						break;
 					}
@@ -87,11 +84,8 @@ public class SensorServer {
 		
 		Sensors sensors;
 		switch (message.id) {
-		case DatagramMessage.SENSORS_REMOTE1:
-			sensors = remote1;
-			break;
-		case DatagramMessage.SENSORS_REMOTE2:
-			sensors = remote2;
+		case DatagramMessage.SENSORS_REMOTE:
+			sensors = remote;
 			break;
 		default:
 			sensors = local;

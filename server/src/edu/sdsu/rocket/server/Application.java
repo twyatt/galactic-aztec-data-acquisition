@@ -72,24 +72,15 @@ public class Application {
 	private final Sensors local = new Sensors();
 	
 	/**
-	 * Provides storage of the first set of remote sensor values. Whereas remote
-	 * refers to the sensors that are located remotely from the system this 
-	 * application is running on. This is generally only used for receiving
-	 * sensor data from the rocket over radio so this will not be used when this
-	 * application is running on a system located on the rocket.
+	 * Provides storage of the remote sensor values. Whereas remote refers to
+	 * the sensors that are located remotely from the system this application is
+	 * running on. This is generally only used for receiving sensor data from
+	 * the rocket over radio so this will not be used when this application is
+	 * running on a system located on the rocket.
 	 */
-	private final Sensors remote1 = new Sensors();
+	private final Sensors remote = new Sensors();
 	
-	/**
-	 * Provides storage of the first set of remote sensor values. Whereas remote
-	 * refers to the sensors that are located remotely from the system this 
-	 * application is running on. This is generally only used for receiving
-	 * sensor data from the rocket over radio so this will not be used when this
-	 * application is running on a system located on the rocket.
-	 */
-	private final Sensors remote2 = new Sensors();
-	
-	private final SensorServer server = new SensorServer(local, remote1, remote2);
+	private final SensorServer server = new SensorServer(local, remote);
 	
 	private XTend900 radio;
 	
@@ -440,21 +431,21 @@ public class Application {
 			System.out.println(tmpVec.scl(9.8f) + " m/s^2");
 			break;
 		case 'A':
-			remote1.accelerometer.get(tmpVec);
+			remote.accelerometer.get(tmpVec);
 			System.out.println(tmpVec.scl(9.8f) + " m/s^2");
 			break;
 		case 'b':
 			System.out.println(local.barometer.getTemperature() + " C, " + local.barometer.getPressure() + " mbar");
 			break;
 		case 'B':
-			System.out.println(remote1.barometer.getTemperature() + " C, " + remote1.barometer.getPressure() + " mbar");
+			System.out.println(remote.barometer.getTemperature() + " C, " + remote.barometer.getPressure() + " mbar");
 			break;
 		case 'y':
 			local.gyroscope.get(tmpVec);
 			System.out.println(tmpVec + " deg/s");
 			break;
 		case 'Y':
-			remote1.gyroscope.get(tmpVec);
+			remote.gyroscope.get(tmpVec);
 			System.out.println(tmpVec + " deg/s");
 			break;
 		case 'c':
@@ -467,10 +458,10 @@ public class Application {
 			break;
 		case 'C':
 			System.out.println(
-					"A0=" + remote1.analog.getA0() + " mV,\t" +
-					"A1=" + remote1.analog.getA1() + " mV,\t" +
-					"A2=" + remote1.analog.getA2() + " mV,\t" +
-					"A3=" + remote1.analog.getA3() + " mV"
+					"A0=" + remote.analog.getA0() + " mV,\t" +
+					"A1=" + remote.analog.getA1() + " mV,\t" +
+					"A2=" + remote.analog.getA2() + " mV,\t" +
+					"A3=" + remote.analog.getA3() + " mV"
 					);
 			break;
 		case 'g':
@@ -482,9 +473,9 @@ public class Application {
 			break;
 		case 'G':
 			System.out.println(
-					"latitude="  + remote1.gps.getLatitude() + ",\t" +
-					"longitude=" + remote1.gps.getLongitude() + ",\t" +
-					"altitude="  + remote1.gps.getAltitude() + " m MSL"
+					"latitude="  + remote.gps.getLatitude() + ",\t" +
+					"longitude=" + remote.gps.getLongitude() + ",\t" +
+					"altitude="  + remote.gps.getAltitude() + " m MSL"
 					);
 			break;
 		case 's':
