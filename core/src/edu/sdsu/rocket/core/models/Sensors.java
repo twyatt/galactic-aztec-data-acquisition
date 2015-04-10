@@ -55,6 +55,8 @@ public class Sensors {
 			buffer.putDouble(gps.getLatitude());
 			buffer.putDouble(gps.getLongitude());
 			buffer.putDouble(gps.getAltitude());
+			buffer.put((byte) (gps.getFixStatus() & 0xFF));
+			buffer.put((byte) (gps.getSatellites() & 0xFF));
 		}
 	}
 	
@@ -95,6 +97,8 @@ public class Sensors {
 			gps.setLatitude(buffer.getDouble());
 			gps.setLongitude(buffer.getDouble());
 			gps.setAltitude(buffer.getDouble());
+			gps.setFixStatus(buffer.get());
+			gps.setSatellites(buffer.get());
 		}
 	}
 

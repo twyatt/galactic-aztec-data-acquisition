@@ -5,9 +5,6 @@ import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.badlogic.gdx.utils.Json;
-import com.badlogic.gdx.utils.JsonValue;
-
 public class XTend900Config {
 	
 	public enum Command {
@@ -178,26 +175,6 @@ public class XTend900Config {
 		}
 		public String getText() {
 			return Command.TX_POWER_LEVEL.getText() + parameter;
-		}
-	}
-	
-	public class Retries implements Json.Serializable {
-		final int parameter;
-		public Retries(int parameter) {
-			this.parameter = parameter;
-		}
-		public String getText() {
-			return Command.RETRIES.getText() + String.format("%02x", parameter).toUpperCase();
-		}
-		@Override
-		public void write(Json json) {
-			json.writeValue("retries", parameter);
-			// TODO Auto-generated method stub
-		}
-		@Override
-		public void read(Json json, JsonValue jsonData) {
-			jsonData.getInt("retries", 10);
-			// TODO Auto-generated method stub
 		}
 	}
 	

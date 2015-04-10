@@ -15,8 +15,11 @@ import net.sf.marineapi.nmea.event.SentenceEvent;
 import net.sf.marineapi.nmea.event.SentenceListener;
 import net.sf.marineapi.nmea.io.SentenceReader;
 import net.sf.marineapi.provider.PositionProvider;
+import net.sf.marineapi.provider.SatelliteInfoProvider;
 import net.sf.marineapi.provider.event.PositionEvent;
 import net.sf.marineapi.provider.event.ProviderListener;
+import net.sf.marineapi.provider.event.SatelliteInfoEvent;
+import net.sf.marineapi.provider.event.SatelliteInfoListener;
 
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
@@ -38,7 +41,6 @@ import edu.sdsu.rocket.pi.Pi;
 import edu.sdsu.rocket.pi.Settings;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
-import edu.sdsu.rocket.pi.devices.AdafruitGPS;
 import edu.sdsu.rocket.pi.devices.DeviceManager;
 import edu.sdsu.rocket.pi.devices.ITG3205;
 import edu.sdsu.rocket.pi.devices.ITG3205.GyroscopeListener;
@@ -50,7 +52,6 @@ import edu.sdsu.rocket.pi.devices.MockMS5611;
 import edu.sdsu.rocket.pi.io.radio.SensorsTransmitter;
 import edu.sdsu.rocket.pi.io.radio.XTend900;
 import edu.sdsu.rocket.pi.io.radio.XTend900Config;
-import edu.sdsu.rocket.pi.io.radio.XTend900Config.Retries;
 
 public class Application {
 	
@@ -311,7 +312,6 @@ public class Application {
 		
 		SentenceReader reader = new SentenceReader(in);
 		reader.addSentenceListener(new SentenceListener() {
-			
 			@Override
 			public void readingStarted() {
 				System.out.println("GPS reading started.");
@@ -334,8 +334,8 @@ public class Application {
 			}
 		});
 		
-		PositionProvider provider = new PositionProvider(reader);
-		provider.addListener(new ProviderListener<PositionEvent>() {
+		PositionProvider position = new PositionProvider(reader);
+		position.addListener(new ProviderListener<PositionEvent>() {
 			@Override
 			public void providerUpdate(PositionEvent event) {
 				double latitude  = event.getPosition().getLatitude();
@@ -344,10 +344,19 @@ public class Application {
 				local.gps.set(latitude, longitude, altitude);
 			}
 		});
-		reader.start();
 		
-		AdafruitGPS gps = new AdafruitGPS(in);
-		gps.setOutputStream(out);
+		SatelliteInfoProvider satelliteInfo = new SatelliteInfoProvider(reader);
+		satelliteInfo.addListener(new SatelliteInfoListener() {
+			@Override
+			public void providerUpdate(SatelliteInfoEvent event) {
+				int fixStatus  = event.getGpsFixStatus().toInt();
+				int satellites = event.getSatelliteIds().length;
+				local.gps.setFixStatus(fixStatus);
+				local.gps.setSatellites(satellites);
+			}
+		});
+		
+		reader.start();
 	}
 	
 	protected void setupServer() throws IOException {
