@@ -1,4 +1,6 @@
-package edu.sdsu.rocket.core.helpers;
+package edu.sdsu.rocket.pi;
+
+import edu.sdsu.rocket.pi.io.radio.XTend900Config;
 
 public class Settings {
 	
@@ -26,15 +28,11 @@ public class Settings {
 	}
 	
 	public static class XTend900Settings {
-		public int id;
 		public boolean enabled;
-		public String mode;
-		public long sleep; // thread sleep (milliseconds)
+		public boolean txLedEnabled;
+		public boolean sendSensorData;
 		public String device;
-		public int baud;
-		public int rfDataRate;
-		public int txPowerLevel;
-		public int transmitOnly;
+		public XTend900Config config;
 	}
 	
 	public static class ADXL345Settings {

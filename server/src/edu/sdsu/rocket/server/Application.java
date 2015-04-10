@@ -26,8 +26,6 @@ import com.pi4j.io.serial.SerialDataEvent;
 import com.pi4j.io.serial.SerialDataEventListener;
 import com.pi4j.io.serial.SerialFactory;
 
-import edu.sdsu.rocket.core.helpers.Logging;
-import edu.sdsu.rocket.core.helpers.Settings;
 import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
@@ -35,7 +33,9 @@ import edu.sdsu.rocket.core.io.MS5611OutputStream;
 import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.core.net.SensorServer;
+import edu.sdsu.rocket.pi.Logging;
 import edu.sdsu.rocket.pi.Pi;
+import edu.sdsu.rocket.pi.Settings;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
 import edu.sdsu.rocket.pi.devices.AdafruitGPS;
@@ -47,15 +47,10 @@ import edu.sdsu.rocket.pi.devices.MockADS1115;
 import edu.sdsu.rocket.pi.devices.MockADXL345;
 import edu.sdsu.rocket.pi.devices.MockITG3205;
 import edu.sdsu.rocket.pi.devices.MockMS5611;
-import edu.sdsu.rocket.pi.devices.XTend900;
-import edu.sdsu.rocket.pi.devices.XTend900.Mode;
-import edu.sdsu.rocket.pi.devices.XTend900.NumberBase;
-import edu.sdsu.rocket.pi.devices.XTend900.RFDataRate;
-import edu.sdsu.rocket.pi.devices.XTend900.TXPowerLevel;
-import edu.sdsu.rocket.pi.devices.XTend900.TransmitOnly;
-import edu.sdsu.rocket.pi.io.SerialDataHandler;
-import edu.sdsu.rocket.pi.io.SerialMessage;
-import edu.sdsu.rocket.pi.io.SerialMessageHandler;
+import edu.sdsu.rocket.pi.io.radio.SensorsTransmitter;
+import edu.sdsu.rocket.pi.io.radio.XTend900;
+import edu.sdsu.rocket.pi.io.radio.XTend900Config;
+import edu.sdsu.rocket.pi.io.radio.XTend900Config.Retries;
 
 public class Application {
 	
@@ -307,10 +302,6 @@ public class Application {
 		System.out.println("Setup GPS [Adafruit Ultimate GPS].");
 		
 		if (settings.test) {
-			double latitude = 0;
-			double longitude = 0;
-			double altitude = 0;
-			local.gps.set(latitude, longitude, altitude);
 			return;
 		}
 		
@@ -364,14 +355,12 @@ public class Application {
 		server.start(settings.server.port);
 	}
 	
-	protected void setupRadio() throws IOException {
+	protected void setupRadio() throws IOException, IllegalStateException, InterruptedException {
 		if (!settings.devices.xtend900.enabled) return;
 		System.out.println("Setup Radio [XTend900].");
 		
-		int id = settings.devices.xtend900.id;
-		Mode mode = XTend900.Mode.valueOf(settings.devices.xtend900.mode);
-		System.out.println("ID: " + id);
-		System.out.println("Mode: " + mode);
+		XTend900Config config = settings.devices.xtend900.config;
+		System.out.println("Config: " + config);
 		
 		Serial serial = SerialFactory.createInstance();
 		
@@ -387,67 +376,19 @@ public class Application {
 			}
 		};
 		serial.addListener(listener);
-		serial.open(settings.devices.xtend900.device, settings.devices.xtend900.baud);
 		
-		radio = new XTend900(serial, local);
-		radio.setId(id);
-		try {
-			radio.turnOn().enterATCommandMode();
-			radio
-				.writeNumberBase(NumberBase.DEFAULT_WITH_UNITS)
-				.requestBoardVoltage()
-				.requestHardwareVersion()
-				.writeRFDataRate(RFDataRate.valueOf(settings.devices.xtend900.rfDataRate))
-				.writeTXPowerLevel(TXPowerLevel.valueOf(settings.devices.xtend900.txPowerLevel))
-				.writeTransmitOnly(TransmitOnly.valueOf(settings.devices.xtend900.transmitOnly))
-				;
-			switch (mode) {
-			case POINT_TO_POINT:
-				radio.writeAutosetMY();
-				radio.writeDestinationAddress("FFFF");
-				break;
-			case POINT_TO_MULTIPOINT_BASE:
-				radio.writeSourceAddress("0");
-				radio.writeDestinationAddress("FFFF");
-				break;
-			case POINT_TO_MULTIPOINT_REMOTE:
-				radio.writeAutosetMY();
-				radio.writeDestinationAddress("0");
-				break;
-			}
-			radio.exitATCommandMode().turnOff();
-		} catch (IllegalStateException e) {
-			System.err.println(e);
-			throw new IOException(e);
-		} catch (InterruptedException e) {
-			System.err.println(e);
-			throw new IOException(e);
-		}
+		String device = settings.devices.xtend900.device;
+		int baud = config.getInterfaceDataRate().getBaud();
+		serial.open(device, baud);
+		
+		radio = new XTend900(serial);
+		radio.setup().configure(config);
 		
 		// clean up serial listener
 		serial.removeListener(listener);
 		
-		switch (mode) {
-		case POINT_TO_MULTIPOINT_BASE:
-			/*
-			 * The radio will run in base mode. So it will parse incoming data
-			 * and store it appropriately.
-			 */
-			serial.addListener(new SerialDataHandler(new SerialMessageHandler() {
-				@Override
-				public void onMessage(SerialMessage message) {
-					// TODO Auto-generated method stub
-				}
-			}));
-			break;
-		case POINT_TO_POINT: // fall thru intentional
-		case POINT_TO_MULTIPOINT_REMOTE:
-			/*
-			 * The radio will run in remote mode. So it will be set to send out
-			 * all local sensor data on interval specified in settings.
-			 */
-			manager.add(radio).setSleep(settings.devices.xtend900.sleep); // 100 ms = 10 Hz
-			break;
+		if (settings.devices.xtend900.sendSensorData) {
+			manager.add(new SensorsTransmitter(radio, local));
 		}
 	}
 	
@@ -539,7 +480,13 @@ public class Application {
 			break;
 		case 's':
 			if (radio == null) {
-				setupRadio();
+				try {
+					setupRadio();
+				} catch (IllegalStateException e) {
+					System.err.println(e);
+				} catch (InterruptedException e) {
+					System.err.println(e);
+				}
 			} else {
 				System.out.println("Radio already started.");
 			}

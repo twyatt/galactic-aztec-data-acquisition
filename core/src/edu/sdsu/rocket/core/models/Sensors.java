@@ -9,14 +9,14 @@ public class Sensors {
 	public final Barometer barometer = new Barometer(); // C, mbar
 	public final Analog analog = new Analog(); // mV
 	public final Pressures pressures = new Pressures(analog); // PSI
-	public final GPS gps = new GPS();
+	public final GPS gps = new GPS(); // degrees, m
 	
 	public static final int ANALOG_MASK        = 0x1;
 	public static final int BAROMETER_MASK     = 0x2;
 	public static final int ACCELEROMETER_MASK = 0x4;
 	public static final int GYROSCOPE_MASK     = 0x8;
 	public static final int GPS_MASK           = 0x10;
-	public static final int ALL_MASK           = 0xF;
+	public static final int ALL_MASK           = 0xFF;
 	
 	public void toByteBuffer(ByteBuffer buffer) {
 		toByteBuffer(buffer, ALL_MASK);
