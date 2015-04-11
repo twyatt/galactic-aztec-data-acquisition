@@ -45,7 +45,7 @@ project(":pi") {
             exclude module: 'pi4j-native'
         }
         
-        compile "net.sf.marineapi:marineapi:0.8.1"
+        compile "net.sf.marineapi:marineapi:0.9.0-SNAPSHOT"
     }
 }
 

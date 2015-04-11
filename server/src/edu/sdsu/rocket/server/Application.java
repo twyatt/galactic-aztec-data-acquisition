@@ -10,6 +10,8 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Reader;
+import java.nio.BufferUnderflowException;
+import java.nio.ByteBuffer;
 
 import net.sf.marineapi.nmea.event.SentenceEvent;
 import net.sf.marineapi.nmea.event.SentenceListener;
@@ -37,7 +39,6 @@ import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.core.net.SensorServer;
 import edu.sdsu.rocket.pi.Logging;
-import edu.sdsu.rocket.pi.Pi;
 import edu.sdsu.rocket.pi.Settings;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
@@ -49,6 +50,8 @@ import edu.sdsu.rocket.pi.devices.MockADS1115;
 import edu.sdsu.rocket.pi.devices.MockADXL345;
 import edu.sdsu.rocket.pi.devices.MockITG3205;
 import edu.sdsu.rocket.pi.devices.MockMS5611;
+import edu.sdsu.rocket.pi.io.radio.APIFrameListener;
+import edu.sdsu.rocket.pi.io.radio.RXPacket;
 import edu.sdsu.rocket.pi.io.radio.SensorsTransmitter;
 import edu.sdsu.rocket.pi.io.radio.XTend900;
 import edu.sdsu.rocket.pi.io.radio.XTend900Config;
@@ -94,6 +97,7 @@ public class Application {
 		loadSettings();
 		setupLogging();
 		setupDevices();
+		setupStatusMonitor();
 		setupServer();
 	}
 
@@ -341,13 +345,19 @@ public class Application {
 			@Override
 			public void providerUpdate(SatelliteInfoEvent event) {
 				int fixStatus  = event.getGpsFixStatus().toInt();
-				int satellites = event.getSatelliteIds().length;
+				int satellites = event.getSatelliteInfo().size();
 				local.gps.setFixStatus(fixStatus);
 				local.gps.setSatellites(satellites);
 			}
 		});
 		
 		reader.start();
+	}
+	
+	private void setupStatusMonitor() {
+		// TODO Auto-generated method stub
+//		new Thread
+		
 	}
 	
 	protected void setupServer() throws IOException {
@@ -383,6 +393,17 @@ public class Application {
 		
 		radio = new XTend900(serial);
 		radio.setup().configure(config);
+		radio.setAPIListener(new APIFrameListener() {
+			@Override
+			public void onRXPacket(RXPacket packet) {
+				ByteBuffer buffer = ByteBuffer.wrap(packet.getData());
+				try {
+					remote.fromByteBuffer(buffer);
+				} catch (BufferUnderflowException e) {
+					System.err.println(e);
+				}
+			}
+		});
 		
 		// clean up serial listener
 		serial.removeListener(listener);
@@ -397,8 +418,9 @@ public class Application {
 		case '?':
 			System.out.println();
 			System.out.println("?: help");
-			System.out.println("t: cpu temperature");
 			System.out.println("f: loop frequency");
+			System.out.println("s: system status (local)");
+			System.out.println("S: system status (remote)");
 			System.out.println("a: accelerometer (local)");
 			System.out.println("A: accelerometer (remote)");
 			System.out.println("y: gyroscope (local)");
@@ -409,19 +431,18 @@ public class Application {
 			System.out.println("C: analog (remote)");
 			System.out.println("g: gps (local)");
 			System.out.println("G: gps (remote)");
-			System.out.println("s: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
-			System.out.println("r: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
+			System.out.println("r: radio (local)");
+			System.out.println("R: radio (remote)");
+			System.out.println("1: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
+			System.out.println("2: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
 			System.out.println("q: quit");
 			System.out.println();
 			break;
-		case 't':
-			try {
-				float tempC = Pi.getCpuTemperature();
-				float tempF = tempC * 9f / 5f + 32f;
-				System.out.println("CPU: " + tempC + " C, " + tempF + " F");
-			} catch (NumberFormatException e) {
-				System.err.println(e);
-			}
+		case 's':
+			System.out.println("CPU: " + local.system.getTemperatureC() + " C, " + local.system.getTemperatureF() + " F");
+			break;
+		case 'S':
+			System.out.println("CPU: " + remote.system.getTemperatureC() + " C, " + remote.system.getTemperatureF() + " F");
 			break;
 		case 'f':
 			System.out.println(manager.toString());
@@ -465,20 +486,56 @@ public class Application {
 					);
 			break;
 		case 'g':
+			int localFix = local.gps.getFixStatus();
+			String lf;
+			switch (localFix) {
+			case 2:
+				lf = "2D";
+				break;
+			case 3:
+				lf = "3D";
+				break;
+			default:
+				lf = "no fix";
+				break;
+			}
 			System.out.println(
 					"latitude="  + local.gps.getLatitude() + ",\t" +
 					"longitude=" + local.gps.getLongitude() + ",\t" +
-					"altitude="  + local.gps.getAltitude() + " m MSL"
+					"altitude="  + local.gps.getAltitude() + " m MSL,\t" +
+					"fix=" + lf + "\t" +
+					"satellites=" + local.gps.getSatellites()
 					);
 			break;
 		case 'G':
+			int remoteFix = local.gps.getFixStatus();
+			String rf;
+			switch (remoteFix) {
+			case 2:
+				rf = "2D";
+				break;
+			case 3:
+				rf = "3D";
+				break;
+			default:
+				rf = "no fix";
+				break;
+			}
 			System.out.println(
 					"latitude="  + remote.gps.getLatitude() + ",\t" +
 					"longitude=" + remote.gps.getLongitude() + ",\t" +
-					"altitude="  + remote.gps.getAltitude() + " m MSL"
+					"altitude="  + remote.gps.getAltitude() + " m MSL,\t" +
+					"fix=" + rf + "\t" +
+					"satellites=" + local.gps.getSatellites()
 					);
 			break;
-		case 's':
+		case 'r':
+			System.out.println("Signal Strength: -" + local.radio.getSignalStrength() + " dBm");
+			break;
+		case 'R':
+			System.out.println("Signal Strength: -" + remote.radio.getSignalStrength() + " dBm");
+			break;
+		case '1':
 			if (radio == null) {
 				try {
 					setupRadio();
@@ -491,7 +548,7 @@ public class Application {
 				System.out.println("Radio already started.");
 			}
 			break;
-		case 'r':
+		case '2':
 			if (radio != null) {
 				radio.toggle();
 				System.out.println("Radio is now " + (radio.isOn() ? "ON" : "OFF") + ".");

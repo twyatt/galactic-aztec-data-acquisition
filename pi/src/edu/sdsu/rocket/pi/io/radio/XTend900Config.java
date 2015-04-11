@@ -211,16 +211,16 @@ public class XTend900Config {
 	
 	public XTend900Config set(XTend900Config config) {
 		autosetMy = config.getAutosetMy();
-		apiEnable = config.getAPIEnable();
-		interfaceDataRate = config.getInterfaceDataRate();
-		rfDataRate = config.getRFDataRate();
-		gpo2Configuration = config.getGPO2Configuration();
-		numberBase = config.getNumberBase();
-		destinationAddress = config.getDestinationAddress();
-		sourceAddress = config.getSourceAddress();
-		txPowerLevel = config.getTXPowerLevel();
-		retries = config.getRetries();
-		transmitOnly = config.getTransmitOnly();
+		if (config.getAPIEnable() != null)          apiEnable = config.getAPIEnable();
+		if (config.getInterfaceDataRate() != null)  interfaceDataRate = config.getInterfaceDataRate();
+		if (config.getRFDataRate() != null)         rfDataRate = config.getRFDataRate();
+		if (config.getGPO2Configuration() != null)  gpo2Configuration = config.getGPO2Configuration();
+		if (config.getNumberBase() != null)         numberBase = config.getNumberBase();
+		if (config.getDestinationAddress() != null) destinationAddress = config.getDestinationAddress();
+		if (config.getSourceAddress() != null)      sourceAddress = config.getSourceAddress();
+		if (config.getTXPowerLevel() != null)       txPowerLevel = config.getTXPowerLevel();
+		if (config.getRetries() != null)            retries = config.getRetries();
+		if (config.getTransmitOnly() != null)       transmitOnly = config.getTransmitOnly();
 		return this;
 	}
 	

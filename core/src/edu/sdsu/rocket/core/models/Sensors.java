@@ -10,12 +10,16 @@ public class Sensors {
 	public final Analog analog = new Analog(); // mV
 	public final Pressures pressures = new Pressures(analog); // PSI
 	public final GPS gps = new GPS(); // degrees, m
+	public final Radio radio = new Radio(); // -dBm
+	public final Status system = new Status(); // C
 	
 	public static final int ANALOG_MASK        = 0x1;
 	public static final int BAROMETER_MASK     = 0x2;
 	public static final int ACCELEROMETER_MASK = 0x4;
 	public static final int GYROSCOPE_MASK     = 0x8;
 	public static final int GPS_MASK           = 0x10;
+	public static final int RADIO_MASK         = 0x20;
+	public static final int SYSTEM_MASK        = 0x40;
 	public static final int ALL_MASK           = 0xFF;
 	
 	public void toByteBuffer(ByteBuffer buffer) {
@@ -58,6 +62,14 @@ public class Sensors {
 			buffer.put((byte) (gps.getFixStatus() & 0xFF));
 			buffer.put((byte) (gps.getSatellites() & 0xFF));
 		}
+		
+		if ((mask & RADIO_MASK) != 0) {
+			buffer.putInt(radio.getSignalStrength());
+		}
+		
+		if ((mask & SYSTEM_MASK) != 0) {
+			buffer.putInt(system.getRawTemperature());
+		}
 	}
 	
 	public void fromByteBuffer(ByteBuffer buffer) {
@@ -99,6 +111,14 @@ public class Sensors {
 			gps.setAltitude(buffer.getDouble());
 			gps.setFixStatus(buffer.get());
 			gps.setSatellites(buffer.get());
+		}
+		
+		if ((mask & RADIO_MASK) != 0) {
+			radio.setSignalStrength(buffer.getInt());
+		}
+		
+		if ((mask & SYSTEM_MASK) != 0) {
+			system.setRawTemperature(buffer.getInt());
 		}
 	}
 

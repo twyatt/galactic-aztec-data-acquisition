@@ -38,4 +38,20 @@ public class RXPacket {
 		return (options & 0x2) != 0;
 	}
 	
+	public short getSourceAddres() {
+		return sourceAddress;
+	}
+	
+	public byte getSignalStrength() {
+		return signalStrength;
+	}
+	
+	public byte getOptions() {
+		return options;
+	}
+	
+	public byte[] getData() {
+		return data;
+	}
+	
 }
