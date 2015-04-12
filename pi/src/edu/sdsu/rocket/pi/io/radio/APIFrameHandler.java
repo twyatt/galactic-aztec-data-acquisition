@@ -39,11 +39,13 @@ public class APIFrameHandler {
 	}
 	
 	public void onData(byte[] data) {
+//		System.out.println(ByteHelper.bytesToHexString(data));
 		int i = 0;
 		byte b;
 		
 		while (i < data.length) {
-			b = data[i];
+			b = data[i++];
+			
 			switch (mode) {
 			case START_DELIMITER:
 				if (b == START_DELIMITER) mode = Mode.LENGTH;
@@ -51,11 +53,12 @@ public class APIFrameHandler {
 			case LENGTH:
 				if (LENGTH_BUFFER.hasRemaining()) {
 					LENGTH_BUFFER.put(b);
-				} else {
+				}
+				if (!LENGTH_BUFFER.hasRemaining()) {
 					int length = LENGTH_BUFFER.getShort(0);
 					if (length <= 0 || length > FRAME_DATA_BUFFER.capacity()) {
 						System.err.println("Invalid API frame length: " + length);
-						mode = Mode.START_DELIMITER;
+						reset();
 						break;
 					}
 					FRAME_DATA_BUFFER.clear();
@@ -66,23 +69,31 @@ public class APIFrameHandler {
 			case FRAME_DATA:
 				if (FRAME_DATA_BUFFER.hasRemaining()) {
 					FRAME_DATA_BUFFER.put(b);
-				} else {
+				}
+				if (!FRAME_DATA_BUFFER.hasRemaining()) {
 					mode = Mode.CHECKSUM;
 				}
 				break;
 			case CHECKSUM:
-				byte[] d = new byte[FRAME_DATA_BUFFER.limit()];
-				FRAME_DATA_BUFFER.get(d);
 				byte checksum = b;
+				byte[] d = new byte[FRAME_DATA_BUFFER.limit()];
+				FRAME_DATA_BUFFER.rewind();
+				FRAME_DATA_BUFFER.get(d);
 				if (APIFrame.verify(d, checksum)) {
 					process(d);
 				} else {
-					System.err.println("API frame checksum failed.");
+					System.err.println("API frame checksum failed: " + ByteHelper.byteToHexString(checksum) + " (received) vs. " + ByteHelper.byteToHexString(APIFrame.checksum(d)) + " (calculated).");
 				}
-				mode = Mode.START_DELIMITER;
+				reset();
 				break;
 			}
 		}
+	}
+
+	private void reset() {
+		mode = Mode.START_DELIMITER;
+		LENGTH_BUFFER.clear();
+		FRAME_DATA_BUFFER.clear();
 	}
 
 	private void process(byte[] data) {

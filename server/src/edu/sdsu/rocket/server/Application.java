@@ -412,7 +412,10 @@ public class Application {
 		serial.addListener(listener);
 		
 		String device = settings.devices.xtend900.device;
-		int baud = config.getInterfaceDataRate().getBaud();
+		
+		int baud = config.getInterfaceDataRate() == null
+				? XTend900Config.InterfaceDataRate.BAUD_9600.getBaud()
+				: config.getInterfaceDataRate().getBaud();
 		serial.open(device, baud);
 		
 		radio = new XTend900(serial);
@@ -420,7 +423,8 @@ public class Application {
 		radio.setAPIListener(new APIFrameListener() {
 			@Override
 			public void onRXPacket(RXPacket packet) {
-				System.out.println("Radio RX packet: Source address=" + packet.getSourceAddres() + ", Signal strengh=-" + packet.getSignalStrength() + " dBm");
+//				System.out.println("Radio RX packet: Source address=" + packet.getSourceAddres() + ", Signal strengh=-" + packet.getSignalStrength() + " dBm");
+				local.radio.setSignalStrength(packet.getSignalStrength());
 				ByteBuffer buffer = ByteBuffer.wrap(packet.getRFData());
 				try {
 					remote.fromByteBuffer(buffer);
@@ -442,6 +446,9 @@ public class Application {
 		
 		// clean up serial listener
 		serial.removeListener(listener);
+		
+//		Thread.sleep(1000L);
+//		radio.turnOff();
 		
 		if (settings.devices.xtend900.sendSensorData) {
 			manager.add(new SensorsTransmitter(radio, local));

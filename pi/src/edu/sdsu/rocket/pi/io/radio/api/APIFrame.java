@@ -60,7 +60,7 @@ public class APIFrame {
 		int total = 0;
 		for (byte b : data) total += b;
 		total += checksum;
-		return total == 0xFF;
+		return (total & 0xFF) == 0xFF;
 	}
 	
 }

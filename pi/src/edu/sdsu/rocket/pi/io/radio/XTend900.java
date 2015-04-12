@@ -90,13 +90,13 @@ public class XTend900 implements SerialDataEventListener {
 			enterCommandMode();
 		}
 		
-		System.out.println(config);
-		serial.write(config + "," + XTend900Config.Command.EXIT_COMMAND_MODE + "\r");
+		System.out.println(config + "," + XTend900Config.Command.EXIT_COMMAND_MODE.getText());
+		serial.write(config + "," + XTend900Config.Command.EXIT_COMMAND_MODE.getText() + "\r");
 		serial.flush();
 		
 		this.config.set(config);
 		
-		switch (config.getAPIEnable()) {
+		switch (this.config.getAPIEnable()) {
 		case ENABLED_WITHOUT_ESCAPED_CHARACTERS:
 			apiFrameHandler = new APIFrameHandler(apiFrameListener);
 			break;
@@ -110,22 +110,40 @@ public class XTend900 implements SerialDataEventListener {
 		isCommandMode = false;
 	}
 	
-	private void enterCommandMode() throws IllegalStateException, IOException, InterruptedException {
-		if (isCommandMode) return;
+	public XTend900 enterCommandMode() throws IllegalStateException, IOException, InterruptedException {
+		if (isCommandMode) return this;
 		
 		isCommandMode = true;
 		serial.flush();
-		Thread.sleep(500L);
+		Thread.sleep(200L);
 		
-		System.out.println(XTend900Config.Command.ENTER_AT_COMMAND_MODE);
-		serial.write(XTend900Config.Command.ENTER_AT_COMMAND_MODE.toString());
+		System.out.println(XTend900Config.Command.ENTER_AT_COMMAND_MODE.getText());
+		serial.write(XTend900Config.Command.ENTER_AT_COMMAND_MODE.getText());
 		serial.flush();
-		Thread.sleep(1000L);
+		Thread.sleep(1200L);
+		
+		return this;
+	}
+	
+	public XTend900 requestFirmwareVersionShort() throws IllegalStateException, IOException, InterruptedException {
+		enterCommandMode();
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.FIRMWARE_VERSION_SHORT.getText();
+		System.out.println(cmd + " [Firmware Version Short]");
+		writeCommand(cmd);
+		return this;
+	}
+	
+	public XTend900 requestFirmwareVersionVerbose() throws IllegalStateException, IOException, InterruptedException {
+		enterCommandMode();
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.FIRMWARE_VERSION_VERBOSE.getText();
+		System.out.println(cmd + " [Firmware Version Verbose]");
+		writeCommand(cmd);
+		return this;
 	}
 	
 	public XTend900 requestBoardVoltage() throws IllegalStateException, IOException, InterruptedException {
 		enterCommandMode();
-		String cmd = XTend900Config.Command.BOARD_VOLTAGE.toString();
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.BOARD_VOLTAGE.getText();
 		System.out.println(cmd + " [Board Voltage]");
 		writeCommand(cmd);
 		return this;
@@ -133,7 +151,7 @@ public class XTend900 implements SerialDataEventListener {
 	
 	public XTend900 requestReceivedSignalStrength() throws IllegalStateException, IOException, InterruptedException {
 		enterCommandMode();
-		String cmd = XTend900Config.Command.RECEIVED_SIGNAL_STRENGTH.toString();
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.RECEIVED_SIGNAL_STRENGTH.getText();
 		System.out.println(cmd + " [Received Signal Strength]");
 		writeCommand(cmd);
 		return this;
@@ -141,7 +159,7 @@ public class XTend900 implements SerialDataEventListener {
 	
 	public XTend900 requestHardwareVersion() throws IllegalStateException, IOException, InterruptedException {
 		enterCommandMode();
-		String cmd = XTend900Config.Command.HARDWARE_VERSION.toString();
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.HARDWARE_VERSION.getText();
 		System.out.println(cmd + " [Hardware Version]");
 		writeCommand(cmd);
 		return this;
@@ -149,14 +167,16 @@ public class XTend900 implements SerialDataEventListener {
 	
 	public XTend900 requestBoardTemperature() throws IllegalStateException, IOException, InterruptedException {
 		enterCommandMode();
-		String cmd = XTend900Config.Command.BOARD_TEMPERATURE.toString();
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.BOARD_TEMPERATURE.getText();
 		System.out.println(cmd + " [Board Temperature]");
 		writeCommand(cmd);
 		return this;
 	}
 	
 	public XTend900 exitCommandMode() throws IllegalStateException, IOException, InterruptedException {
-		writeCommand(XTend900Config.Command.EXIT_COMMAND_MODE.toString());
+		String cmd = XTend900Config.COMMAND_PREFIX + XTend900Config.Command.EXIT_COMMAND_MODE.getText();
+		System.out.println(cmd + " [Exit Command Mode]");
+		writeCommand(cmd);
 		isCommandMode = false;
 		return this;
 	}
@@ -204,7 +224,7 @@ public class XTend900 implements SerialDataEventListener {
 		
 		switch (config.getAPIEnable()) {
 		case ENABLED_WITHOUT_ESCAPED_CHARACTERS:
-			write(new TXRequest(data));
+			write(new TXRequest(TXRequest.FRAME_ID_DISABLE, TXRequest.BROADCAST_ADDRESS, TXRequest.OPTIONS_DISABLE_ACK, data));
 			break;
 		case ENABLED_WITH_ESCAPED_CHARACTERS:
 			throw new UnsupportedOperationException("API frame with escaped characters not implemented.");
@@ -216,7 +236,7 @@ public class XTend900 implements SerialDataEventListener {
 	
 	private void write(TXRequest txRequest) throws IllegalStateException, IOException {
 		byte[] frameData = txRequest.getFrameData();
-		byte checksum = APIFrame.checksum(txRequest.getFrameData());
+		byte checksum = txRequest.getChecksum();
 		write(new APIFrame(frameData, checksum));
 	}
 	
@@ -227,12 +247,15 @@ public class XTend900 implements SerialDataEventListener {
 		WRITE_BUFFER.put(frame.getFrameData());
 		WRITE_BUFFER.put(frame.getChecksum());
 		
-		byte[] data = WRITE_BUFFER.array();
+		byte[] data = new byte[WRITE_BUFFER.position()];
+		WRITE_BUFFER.rewind();
+		WRITE_BUFFER.get(data);
+		
 		int offset = 0;
-		int length = WRITE_BUFFER.position();
+		int length = data.length;
 		serial.write(data, offset, length);
 		
-		pulseTXLed(WRITE_BUFFER.position());
+		pulseTXLed(length);
 	}
 	
 	private void write(byte[] data) throws IllegalStateException, IOException {

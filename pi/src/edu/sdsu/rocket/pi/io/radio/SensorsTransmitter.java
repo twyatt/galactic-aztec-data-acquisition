@@ -24,9 +24,13 @@ public class SensorsTransmitter implements Device {
 		if (radio.isOn()) {
 			WRITE_BUFFER.clear();
 			sensors.toByteBuffer(WRITE_BUFFER);
-			radio.send(new byte[WRITE_BUFFER.position()]);
+//			WRITE_BUFFER.put((byte) 0xF0); // for debugging
+			byte[] data = new byte[WRITE_BUFFER.position()];
+			WRITE_BUFFER.rewind();
+			WRITE_BUFFER.get(data);
+			radio.send(data);
 		} else {
-			Thread.sleep(250L);
+			Thread.sleep(500L);
 		}
 	}
 

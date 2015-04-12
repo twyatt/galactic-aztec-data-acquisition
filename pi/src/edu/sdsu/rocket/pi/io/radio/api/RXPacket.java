@@ -6,6 +6,8 @@ public class RXPacket {
 
 	private static final byte ACK_BIT = 0x1;
 	private static final byte INDICATE_BROADCAST_BIT = 0x2;
+	
+	private byte apiIdentifier;
 
 	/**
 	 * Source Address
@@ -37,21 +39,18 @@ public class RXPacket {
 	
 	public RXPacket(byte[] frameData) {
 		ByteBuffer buffer = ByteBuffer.wrap(frameData);
+		apiIdentifier = buffer.get();
 		sourceAddress = buffer.getShort();
 		signalStrength = buffer.get();
 		options = buffer.get();
 		rfData = new byte[buffer.remaining()];
 		buffer.get(rfData);
 	}
+	
+	public byte getAPIIdentifier() {
+		return apiIdentifier;
+	}
 
-	public boolean isACK() {
-		return (options & ACK_BIT) != 0;
-	}
-	
-	public boolean isBroadcast() {
-		return (options & INDICATE_BROADCAST_BIT) != 0;
-	}
-	
 	public short getSourceAddres() {
 		return sourceAddress;
 	}
@@ -66,6 +65,14 @@ public class RXPacket {
 	
 	public byte[] getRFData() {
 		return rfData;
+	}
+	
+	public boolean isACK() {
+		return (options & ACK_BIT) != 0;
+	}
+	
+	public boolean isBroadcast() {
+		return (options & INDICATE_BROADCAST_BIT) != 0;
 	}
 	
 }

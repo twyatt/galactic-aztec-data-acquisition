@@ -25,6 +25,8 @@ public class XTend900Config {
 		TX_POWER_LEVEL          ("PL"),
 		RETRIES                 ("RR"),
 		TRANSMIT_ONLY           ("TX"),
+		FIRMWARE_VERSION_VERBOSE("VL"),
+		FIRMWARE_VERSION_SHORT  ("VR"),
 		;
 		final String text;
 		Command(String text) {
@@ -34,8 +36,8 @@ public class XTend900Config {
 			return text;
 		}
 	}
-	private static final String COMMAND_PREFIX = "AT";
-	private static final String COMMAND_SEPARATOR = ",";
+	static final String COMMAND_PREFIX = "AT";
+	static final String COMMAND_SEPARATOR = ",";
 	
 	public enum APIEnable {
 		DISABLED                          (0), // default
@@ -332,6 +334,7 @@ public class XTend900Config {
 		numberBase = NumberBase.UNSIGNED_HEX_WITHOUT_UNITS;
 		destinationAddress = new DestinationAddress();
 		sourceAddress = new SourceAddress();
+		txPowerLevel = TXPowerLevel.TX_1000mW;
 		retries = 10;
 		transmitOnly = TransmitOnly.TX_RX;
 		return this;
@@ -369,6 +372,7 @@ public class XTend900Config {
 		if (numberBase != null)         commands.add(numberBase.getText());
 		if (destinationAddress != null) commands.add(destinationAddress.getText());
 		if (sourceAddress != null)      commands.add(sourceAddress.getText());
+		if (txPowerLevel != null)       commands.add(txPowerLevel.getText());
 		if (retries != null)            commands.add(Command.RETRIES.getText() + String.format("%x", retries).toUpperCase());
 		if (transmitOnly != null)       commands.add(transmitOnly.getText());
 		return COMMAND_PREFIX + StringUtils.join(commands.toArray(), COMMAND_SEPARATOR);
