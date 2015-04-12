@@ -2,17 +2,23 @@ package edu.sdsu.rocket.pi.io.radio;
 
 import java.nio.ByteBuffer;
 
-import edu.sdsu.rocket.pi.io.radio.XTend900.APIFrame;
+import edu.sdsu.rocket.core.helpers.ByteHelper;
+import edu.sdsu.rocket.pi.io.radio.api.APIFrame;
+import edu.sdsu.rocket.pi.io.radio.api.RFModuleStatus;
+import edu.sdsu.rocket.pi.io.radio.api.RXPacket;
+import edu.sdsu.rocket.pi.io.radio.api.TXStatus;
 
 public class APIFrameHandler {
 	
 	private static final byte START_DELIMITER = 0x7E;
 
-	private static final byte RX_PACKET_IDENTIFIER = (byte) 0x81;
+	private static final byte RX_PACKET_IDENTIFIER       = (byte) 0x81;
+	private static final byte RF_MODULE_STAUS_IDENTIFIER = (byte) 0x8A;
+	private static final byte TX_STATUS_IDENTIFIER       = (byte) 0x89;
 	
 	private static final int LENGTH_SIZE = 2;
 	private static final ByteBuffer LENGTH_BUFFER = ByteBuffer.allocate(LENGTH_SIZE);
-	private static final ByteBuffer FRAME_DATA_BUFFER = ByteBuffer.allocate(XTend900.APIFrame.MAXIMUM_FRAME_DATA_LENGTH);
+	private static final ByteBuffer FRAME_DATA_BUFFER = ByteBuffer.allocate(APIFrame.MAXIMUM_FRAME_DATA_LENGTH);
 	
 	enum Mode {
 		START_DELIMITER,
@@ -35,6 +41,7 @@ public class APIFrameHandler {
 	public void onData(byte[] data) {
 		int i = 0;
 		byte b;
+		
 		while (i < data.length) {
 			b = data[i];
 			switch (mode) {
@@ -79,19 +86,21 @@ public class APIFrameHandler {
 	}
 
 	private void process(byte[] data) {
+		if (data == null || data.length == 0) {
+			System.err.println("Invalid frame data length: " + (data == null ? "null" : data.length));
+		}
+		
 		if (listener != null) {
-			ByteBuffer buffer = ByteBuffer.wrap(data);
-			byte identifier = buffer.get();
+			byte identifier = data[0];
 			
 			if (identifier == RX_PACKET_IDENTIFIER) {
-				RXPacket packet = new RXPacket();
-				packet.sourceAddress = buffer.getShort();
-				packet.signalStrength = buffer.get();
-				packet.options = buffer.get();
-				packet.data = new byte[buffer.remaining()];
-				buffer.get(packet.data);
-				
-				listener.onRXPacket(packet);
+				listener.onRXPacket(new RXPacket(data));
+			} else if (identifier == RF_MODULE_STAUS_IDENTIFIER) {
+				listener.onRFModuleStatus(new RFModuleStatus(data));
+			} else if (identifier == TX_STATUS_IDENTIFIER) {
+				listener.onTXStatus(new TXStatus(data));
+			} else {
+				System.err.println("Unhandled API frame: " + ByteHelper.byteToHexString(identifier));
 			}
 		}
 	}

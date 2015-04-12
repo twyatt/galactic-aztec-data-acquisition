@@ -69,6 +69,7 @@ public class Sensors {
 		
 		if ((mask & SYSTEM_MASK) != 0) {
 			buffer.putInt(system.getRawTemperature());
+			buffer.put(system.getIsPowerGood() ? (byte) 0x1 : (byte) 0x0);
 		}
 	}
 	
@@ -119,6 +120,7 @@ public class Sensors {
 		
 		if ((mask & SYSTEM_MASK) != 0) {
 			system.setRawTemperature(buffer.getInt());
+			system.setIsPowerGood(buffer.get() != 0);
 		}
 	}
 

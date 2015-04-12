@@ -1,6 +1,11 @@
-package edu.sdsu.rocket.pi.io.radio;
+package edu.sdsu.rocket.pi.io.radio.api;
+
+import java.nio.ByteBuffer;
 
 public class RXPacket {
+
+	private static final byte ACK_BIT = 0x1;
+	private static final byte INDICATE_BROADCAST_BIT = 0x2;
 
 	/**
 	 * Source Address
@@ -28,14 +33,23 @@ public class RXPacket {
 	 * RF Data
 	 * Up to 2048 Bytes per packet
 	 */
-	byte[] data;
+	byte[] rfData;
 	
+	public RXPacket(byte[] frameData) {
+		ByteBuffer buffer = ByteBuffer.wrap(frameData);
+		sourceAddress = buffer.getShort();
+		signalStrength = buffer.get();
+		options = buffer.get();
+		rfData = new byte[buffer.remaining()];
+		buffer.get(rfData);
+	}
+
 	public boolean isACK() {
-		return (options & 0x1) != 0;
+		return (options & ACK_BIT) != 0;
 	}
 	
 	public boolean isBroadcast() {
-		return (options & 0x2) != 0;
+		return (options & INDICATE_BROADCAST_BIT) != 0;
 	}
 	
 	public short getSourceAddres() {
@@ -50,8 +64,8 @@ public class RXPacket {
 		return options;
 	}
 	
-	public byte[] getData() {
-		return data;
+	public byte[] getRFData() {
+		return rfData;
 	}
 	
 }

@@ -11,15 +11,19 @@ public class Pi {
 	private static final String CPU_TEMPERATURE_DEVICE = "/sys/class/thermal/thermal_zone0/temp";
 	
 	// degrees celsius
-	public static float getCpuTemperature() throws IOException {
+	public static float getCpuTemperatureC() throws IOException {
+		return (float) getRawCpuTemperature() / 1000f;
+	}
+	
+	public static int getRawCpuTemperature() throws IOException {
 		BufferedReader in;
 		try {
 			in = new BufferedReader(new FileReader(CPU_TEMPERATURE_DEVICE));
 		} catch (FileNotFoundException e) {
 			System.err.println(e);
-			return 0f;
+			return 0;
 		}
-		float temperature = (float) Integer.valueOf(in.readLine()) / 1000f;
+		int temperature = Integer.valueOf(in.readLine());
 		in.close();
 		return temperature;
 	}

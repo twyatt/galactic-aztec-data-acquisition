@@ -12,61 +12,21 @@ import com.pi4j.io.serial.Serial;
 import com.pi4j.io.serial.SerialDataEvent;
 import com.pi4j.io.serial.SerialDataEventListener;
 
+import edu.sdsu.rocket.pi.io.radio.api.APIFrame;
+import edu.sdsu.rocket.pi.io.radio.api.TXRequest;
+
 public class XTend900 implements SerialDataEventListener {
 	
 	// only used when AP = 0 (default)
 	public interface XTend900Listener {
 		public void onDataReceived(byte[] data);
 	}
-	
-	/*
-	 * Start Delimiter |   Length  |        Frame Data      | Checksum
-	 *       0x7E      | MSB | LSB | API Identifier | Data* |
-	 *      Byte 1     | Bytes 2-3 |     Byte 4     |       |  1 Byte
-	 *
-	 * *Data may be up to 2048 bytes.
-	 */
-	static class APIFrame {
-		
-		// API Identifier (4) + Data (2048)
-		static final int MAXIMUM_FRAME_DATA_LENGTH = 4 + 2048;
-		
-		// Start Delimiter (1) + Length (2) + Frame Data + Checksum (1)
-		static final int MAXIMUM_FRAME_LENGTH = 1 + 2 + MAXIMUM_FRAME_DATA_LENGTH + 1;
-		
-		public byte startDelimiter = 0x7E;
-		public short length;
-		public byte[] data;
-		public short checksum;
-		
-		public APIFrame(byte[] data) {
-			if (data.length > MAXIMUM_FRAME_DATA_LENGTH) {
-				throw new IllegalArgumentException("Frame data length " + data.length + " exceed maximum data length of " + MAXIMUM_FRAME_DATA_LENGTH + ".");
-			}
-			length = (short) data.length;
-			this.data = data;
-			checksum = checksum(data);
-		}
-
-		public static short checksum(byte[] data) {
-			int total = 0;
-			for (byte b : data) total += b;
-			return (short) (0xFF - (total & 0xFF));
-		}
-		
-		public static boolean verify(byte[] data, short checksum) {
-			int total = 0;
-			for (byte b : data) total += b;
-			total += checksum;
-			return total == 0xFF;
-		}
-		
-	}
+	private XTend900Listener listener;
 	
 	static final int BUFFER_SIZE = APIFrame.MAXIMUM_FRAME_LENGTH;
 	private static final ByteBuffer WRITE_BUFFER = ByteBuffer.allocate(BUFFER_SIZE);
 
-	private XTend900Listener listener;
+	// only used when AP = 1 or 2
 	private APIFrameListener apiFrameListener;
 	private APIFrameHandler apiFrameHandler;
 	
@@ -244,7 +204,7 @@ public class XTend900 implements SerialDataEventListener {
 		
 		switch (config.getAPIEnable()) {
 		case ENABLED_WITHOUT_ESCAPED_CHARACTERS:
-			write(new APIFrame(data));
+			write(new TXRequest(data));
 			break;
 		case ENABLED_WITH_ESCAPED_CHARACTERS:
 			throw new UnsupportedOperationException("API frame with escaped characters not implemented.");
@@ -254,12 +214,18 @@ public class XTend900 implements SerialDataEventListener {
 		}
 	}
 	
+	private void write(TXRequest txRequest) throws IllegalStateException, IOException {
+		byte[] frameData = txRequest.getFrameData();
+		byte checksum = APIFrame.checksum(txRequest.getFrameData());
+		write(new APIFrame(frameData, checksum));
+	}
+	
 	private void write(APIFrame frame) throws IllegalStateException, IOException {
 		WRITE_BUFFER.clear();
-		WRITE_BUFFER.put(frame.startDelimiter);
-		WRITE_BUFFER.putShort(frame.length);
-		WRITE_BUFFER.put(frame.data);
-		WRITE_BUFFER.put((byte) (frame.checksum & 0xFF));
+		WRITE_BUFFER.put(frame.getStartDelimiter());
+		WRITE_BUFFER.putShort(frame.getLength());
+		WRITE_BUFFER.put(frame.getFrameData());
+		WRITE_BUFFER.put(frame.getChecksum());
 		
 		byte[] data = WRITE_BUFFER.array();
 		int offset = 0;

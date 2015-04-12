@@ -26,11 +26,17 @@ import net.sf.marineapi.provider.event.SatelliteInfoListener;
 import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Json;
+import com.pi4j.io.gpio.GpioController;
+import com.pi4j.io.gpio.GpioFactory;
+import com.pi4j.io.gpio.GpioPinDigitalInput;
+import com.pi4j.io.gpio.PinPullResistance;
+import com.pi4j.io.gpio.RaspiPin;
 import com.pi4j.io.serial.Serial;
 import com.pi4j.io.serial.SerialDataEvent;
 import com.pi4j.io.serial.SerialDataEventListener;
 import com.pi4j.io.serial.SerialFactory;
 
+import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
 import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
@@ -39,6 +45,7 @@ import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
 import edu.sdsu.rocket.core.models.Sensors;
 import edu.sdsu.rocket.core.net.SensorServer;
 import edu.sdsu.rocket.pi.Logging;
+import edu.sdsu.rocket.pi.Pi;
 import edu.sdsu.rocket.pi.Settings;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
@@ -51,10 +58,12 @@ import edu.sdsu.rocket.pi.devices.MockADXL345;
 import edu.sdsu.rocket.pi.devices.MockITG3205;
 import edu.sdsu.rocket.pi.devices.MockMS5611;
 import edu.sdsu.rocket.pi.io.radio.APIFrameListener;
-import edu.sdsu.rocket.pi.io.radio.RXPacket;
 import edu.sdsu.rocket.pi.io.radio.SensorsTransmitter;
 import edu.sdsu.rocket.pi.io.radio.XTend900;
 import edu.sdsu.rocket.pi.io.radio.XTend900Config;
+import edu.sdsu.rocket.pi.io.radio.api.RFModuleStatus;
+import edu.sdsu.rocket.pi.io.radio.api.RXPacket;
+import edu.sdsu.rocket.pi.io.radio.api.TXStatus;
 
 public class Application {
 	
@@ -86,6 +95,7 @@ public class Application {
 	private final SensorServer server = new SensorServer(local, remote);
 	
 	private XTend900 radio;
+	private Thread statusThread;
 	
 	private final Vector3 tmpVec = new Vector3();
 	
@@ -355,9 +365,23 @@ public class Application {
 	}
 	
 	private void setupStatusMonitor() {
-		// TODO Auto-generated method stub
-//		new Thread
+		System.out.println("Setup status monitor.");
 		
+		GpioController gpio = GpioFactory.getInstance();
+		final GpioPinDigitalInput pgood = gpio.provisionDigitalInputPin(RaspiPin.GPIO_22, "PGOOD", PinPullResistance.OFF);
+		
+		statusThread = new Thread(new RateLimitedRunnable(1000L) {
+			@Override
+			public void loop() throws InterruptedException {
+				try {
+					local.system.setRawTemperature(Pi.getRawCpuTemperature());
+					local.system.setIsPowerGood(pgood.isHigh());
+				} catch (IOException e) {
+					System.err.println(e);
+				}
+			}
+		});
+		statusThread.start();
 	}
 	
 	protected void setupServer() throws IOException {
@@ -396,12 +420,23 @@ public class Application {
 		radio.setAPIListener(new APIFrameListener() {
 			@Override
 			public void onRXPacket(RXPacket packet) {
-				ByteBuffer buffer = ByteBuffer.wrap(packet.getData());
+				System.out.println("Radio RX packet: Source address=" + packet.getSourceAddres() + ", Signal strengh=-" + packet.getSignalStrength() + " dBm");
+				ByteBuffer buffer = ByteBuffer.wrap(packet.getRFData());
 				try {
 					remote.fromByteBuffer(buffer);
 				} catch (BufferUnderflowException e) {
 					System.err.println(e);
 				}
+			}
+
+			@Override
+			public void onRFModuleStatus(RFModuleStatus rfModuleStatus) {
+				System.out.println("Radio status: Hardware reset=" + rfModuleStatus.isHardwareReset() + ", Watchdog timer reset=" + rfModuleStatus.isWatchdogTimerReset());
+			}
+
+			@Override
+			public void onTXStatus(TXStatus txStatus) {
+				System.out.println("Radio TX status: Frame ID=" + txStatus.getFrameID() + ", Success=" + (txStatus.isSuccess() ? "yes" : "no") + ", No ACK Received=" + (txStatus.isNoACKReceived() ? "yes" : "no"));
 			}
 		});
 		
@@ -439,10 +474,10 @@ public class Application {
 			System.out.println();
 			break;
 		case 's':
-			System.out.println("CPU: " + local.system.getTemperatureC() + " C, " + local.system.getTemperatureF() + " F");
+			System.out.println("CPU: " + local.system.getTemperatureC() + " C, " + local.system.getTemperatureF() + " F, Power " + (local.system.getIsPowerGood() ? "GOOD" : "BAD"));
 			break;
 		case 'S':
-			System.out.println("CPU: " + remote.system.getTemperatureC() + " C, " + remote.system.getTemperatureF() + " F");
+			System.out.println("CPU: " + remote.system.getTemperatureC() + " C, " + remote.system.getTemperatureF() + " F, Power " + (remote.system.getIsPowerGood() ? "GOOD" : "BAD"));
 			break;
 		case 'f':
 			System.out.println(manager.toString());
@@ -565,6 +600,16 @@ public class Application {
 		
 		System.out.println("Stopping server.");
 		server.stop();
+		
+		if (statusThread != null) {
+			System.out.println("Stopping status monitor.");
+			statusThread.interrupt();
+			try {
+				statusThread.join();
+			} catch (InterruptedException e) {
+				System.err.println(e);
+			}
+		}
 		
 		System.out.println("Stopping device manager.");
 		manager.clear();
