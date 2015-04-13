@@ -1,6 +1,7 @@
 package edu.sdsu.rocket.pi.io.radio;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 
 import com.pi4j.io.gpio.GpioController;
@@ -30,6 +31,8 @@ public class XTend900 implements SerialDataEventListener {
 	private APIFrameListener apiFrameListener;
 	private APIFrameHandler apiFrameHandler;
 	
+	private OutputStream logOutputStream;
+	
 	private boolean isTXLedEnabled;
 	private GpioPinDigitalOutput txLed;
 	private GpioPinDigitalOutput shdn;
@@ -54,6 +57,11 @@ public class XTend900 implements SerialDataEventListener {
 		if (apiFrameHandler != null) {
 			apiFrameHandler.setListener(apiFrameListener);
 		}
+		return this;
+	}
+	
+	public XTend900 setLogOutputStream(OutputStream logOutputStream) {
+		this.logOutputStream = logOutputStream;
 		return this;
 	}
 	
@@ -273,6 +281,9 @@ public class XTend900 implements SerialDataEventListener {
 	public void dataReceived(SerialDataEvent event) {
 		try {
 			byte[] data = event.getBytes();
+			if (logOutputStream != null) {
+				logOutputStream.write(data, 0 /* offset */, data.length);
+			}
 			
 			switch (config.getAPIEnable()) {
 			case ENABLED_WITHOUT_ESCAPED_CHARACTERS:

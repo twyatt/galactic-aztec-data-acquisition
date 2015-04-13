@@ -4,21 +4,22 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import com.badlogic.gdx.math.Vector3;
 
+import edu.sdsu.rocket.core.helpers.AtomicFloat;
+
 public class Gyroscope {
 	
-	private float scalingFactor = 1.0f;
-	
+	private final AtomicFloat scalingFactor = new AtomicFloat(1f);
 	private final AtomicInteger rawX = new AtomicInteger();
 	private final AtomicInteger rawY = new AtomicInteger();
 	private final AtomicInteger rawZ = new AtomicInteger();
 
 	public Gyroscope setScalingFactor(float scalingFactor) {
-		this.scalingFactor = scalingFactor;
+		this.scalingFactor.set(scalingFactor);
 		return this;
 	}
 	
 	public float getScalingFactor() {
-		return scalingFactor;
+		return scalingFactor.get();
 	}
 	
 	public void setRawX(int value) {
@@ -53,7 +54,7 @@ public class Gyroscope {
 	 * @param v
 	 */
 	public void get(Vector3 v) {
-		v.set(getRawX(), getRawY(), getRawZ()).scl(scalingFactor);
+		v.set(getRawX(), getRawY(), getRawZ()).scl(getScalingFactor());
 	}
 	
 }

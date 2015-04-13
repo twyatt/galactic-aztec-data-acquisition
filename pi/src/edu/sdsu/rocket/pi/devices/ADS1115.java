@@ -25,14 +25,14 @@ public class ADS1115 implements Device {
 	
 	public interface AnalogListener {
 		public void onValue(Channel channel, float value);
+
+		public void onConversionTimeout();
 	}
 	private AnalogListener listener;
 	public ADS1115 setListener(AnalogListener listener) {
 		this.listener = listener;
 		return this;
 	}
-	
-	private static final boolean DEBUG = true;
 	
 	private long timeout;
 	public void setTimeout(long timeout) {
@@ -526,14 +526,12 @@ public class ADS1115 implements Device {
 			long start = System.nanoTime();
 			setSingleEnded(channel).begin();
 			
-//			Thread.sleep(0, 250000); // 0.25 ms
-			
 			// wait for conversion
-			while (true) {
-				if (!isPerformingConversion()) {
-					break;
-				} else if (System.nanoTime() - start > timeout) {
-					if (DEBUG) System.out.print("!");
+			while (isPerformingConversion()) {
+				if (System.nanoTime() - start > timeout) {
+					if (listener != null) {
+						listener.onConversionTimeout();
+					}
 					break;
 				}
 			}

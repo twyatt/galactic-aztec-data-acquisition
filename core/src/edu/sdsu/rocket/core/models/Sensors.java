@@ -6,6 +6,7 @@ public class Sensors {
 	
 	public final Accelerometer accelerometer = new Accelerometer(); // Gs
 	public final Gyroscope gyroscope = new Gyroscope(); // deg/sec
+	public final Magnetometer magnetometer = new Magnetometer();
 	public final Barometer barometer = new Barometer(); // C, mbar
 	public final Analog analog = new Analog(); // mV
 	public final Pressures pressures = new Pressures(analog); // PSI
@@ -17,9 +18,10 @@ public class Sensors {
 	public static final int BAROMETER_MASK     = 0x2;
 	public static final int ACCELEROMETER_MASK = 0x4;
 	public static final int GYROSCOPE_MASK     = 0x8;
-	public static final int GPS_MASK           = 0x10;
-	public static final int RADIO_MASK         = 0x20;
-	public static final int SYSTEM_MASK        = 0x40;
+	public static final int MAGNETOMETER_MASK  = 0x10;
+	public static final int GPS_MASK           = 0x20;
+	public static final int RADIO_MASK         = 0x40;
+	public static final int SYSTEM_MASK        = 0x80;
 	public static final int ALL_MASK           = 0xFF;
 	
 	public void toByteBuffer(ByteBuffer buffer) {
@@ -55,6 +57,12 @@ public class Sensors {
 			buffer.putShort((short) gyroscope.getRawZ());
 		}
 		
+		if ((mask & MAGNETOMETER_MASK) != 0) {
+			buffer.putShort((short) magnetometer.getRawX());
+			buffer.putShort((short) magnetometer.getRawY());
+			buffer.putShort((short) magnetometer.getRawZ());
+		}
+		
 		if ((mask & GPS_MASK) != 0) {
 			buffer.putDouble(gps.getLatitude());
 			buffer.putDouble(gps.getLongitude());
@@ -64,7 +72,7 @@ public class Sensors {
 		}
 		
 		if ((mask & RADIO_MASK) != 0) {
-			buffer.putInt(radio.getSignalStrength());
+			buffer.put(radio.getSignalStrength());
 		}
 		
 		if ((mask & SYSTEM_MASK) != 0) {
@@ -106,6 +114,12 @@ public class Sensors {
 			gyroscope.setRawZ(buffer.getShort());
 		}
 		
+		if ((mask & MAGNETOMETER_MASK) != 0) {
+			magnetometer.setRawX(buffer.getShort());
+			magnetometer.setRawY(buffer.getShort());
+			magnetometer.setRawZ(buffer.getShort());
+		}
+		
 		if ((mask & GPS_MASK) != 0) {
 			gps.setLatitude(buffer.getDouble());
 			gps.setLongitude(buffer.getDouble());
@@ -115,7 +129,7 @@ public class Sensors {
 		}
 		
 		if ((mask & RADIO_MASK) != 0) {
-			radio.setSignalStrength(buffer.getInt());
+			radio.setSignalStrength(buffer.get());
 		}
 		
 		if ((mask & SYSTEM_MASK) != 0) {

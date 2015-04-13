@@ -48,6 +48,11 @@ import eu.hansolo.enzo.gauge.GaugeBuilder;
 @SuppressWarnings("deprecation")
 public class MainController {
 	
+	private static final double CHART_WIDTH  = 400;
+	private static final double CHART_HEIGHT = 300;
+	private static final double GAUGE_WIDTH  = 300;
+	private static final double GAUGE_HEIGHT = 300;
+	
 	private static final long NANOSECONDS_PER_MILLISECOND = 1000000L;
 	
 	private static final boolean DEBUG_SENSORS = false;
@@ -83,6 +88,7 @@ public class MainController {
 	private int chartIndex;
 	private static final int ACCELEROMETER_DATA_POINTS = 50;
 	private static final int GYROSCOPE_DATA_POINTS     = 50;
+	private static final int MAGNETOMETER_DATA_POINTS  = 50;
 	
 	private NumberAxis accelerometerX;
 	private Series<Number, Number> accelerometerXData = new XYChart.Series<Number, Number>();
@@ -93,9 +99,14 @@ public class MainController {
 	private Series<Number, Number> gyroscopeXData = new XYChart.Series<Number, Number>();
 	private Series<Number, Number> gyroscopeYData = new XYChart.Series<Number, Number>();
 	private Series<Number, Number> gyroscopeZData = new XYChart.Series<Number, Number>();
+	
+	private NumberAxis magnetometerX;
+	private Series<Number, Number> magnetometerXData = new XYChart.Series<Number, Number>();
+	private Series<Number, Number> magnetometerYData = new XYChart.Series<Number, Number>();
+	private Series<Number, Number> magnetometerZData = new XYChart.Series<Number, Number>();
 
 	private static final Vector3 tmpVec = new Vector3();
-	
+
 	/**
 	 * Constructor for the controller.
 	 * 
@@ -221,12 +232,27 @@ public class MainController {
 		gyroscope.getData().add(gyroscopeYData);
 		gyroscope.getData().add(gyroscopeZData);
 		
+		magnetometerX = new NumberAxis();
+		NumberAxis magnetometerY = new NumberAxis();
+		magnetometerX.setAutoRanging(false);
+		magnetometerX.setTickLabelsVisible(false);
+		magnetometerY.setLabel("Field Strength (Ga)");
+		magnetometerY.setForceZeroInRange(true);
+		LineChart<Number, Number> magnetometer = makeChart("Magnetometer", magnetometerX, magnetometerY);
+		magnetometerXData.setName("X");
+		magnetometerYData.setName("Y");
+		magnetometerZData.setName("Z");
+		magnetometer.getData().add(magnetometerXData);
+		magnetometer.getData().add(magnetometerYData);
+		magnetometer.getData().add(magnetometerZData);
+		
 		gaugePane.getChildren().add(lox);
 		gaugePane.getChildren().add(kerosene);
 		gaugePane.getChildren().add(helium);
 		gaugePane.getChildren().add(motor);
 		gaugePane.getChildren().add(accelerometer);
 		gaugePane.getChildren().add(gyroscope);
+		gaugePane.getChildren().add(magnetometer);
 	}
 
 	private LineChart<Number, Number> makeChart(String title, NumberAxis x, NumberAxis y) {
@@ -236,14 +262,14 @@ public class MainController {
 		chart.setAnimated(false);
 		chart.setHorizontalZeroLineVisible(true);
 		chart.setLegendSide(Side.RIGHT);
-		chart.setPrefWidth(600);
-		chart.setPrefHeight(300);
+		chart.setPrefWidth(CHART_WIDTH);
+		chart.setPrefHeight(CHART_HEIGHT);
 		return chart;
 	}
 
 	private Gauge makePressureGauge(String label, String unit, double maxValue, double minorTickSpace) {
 		return GaugeBuilder.create()
-				.prefWidth(300).prefHeight(300)
+				.prefWidth(GAUGE_WIDTH).prefHeight(GAUGE_HEIGHT)
 				.styleClass("gauge")
 				.title(label)
 				.unit(unit)
@@ -286,6 +312,9 @@ public class MainController {
 				gyroscopeXData.getData().clear();
 				gyroscopeYData.getData().clear();
 				gyroscopeZData.getData().clear();
+				magnetometerXData.getData().clear();
+				magnetometerYData.getData().clear();
+				magnetometerZData.getData().clear();
 			}
 		});
 	}
@@ -339,6 +368,23 @@ public class MainController {
 		gyroscopeXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.x));
 		gyroscopeYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.y));
 		gyroscopeZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.z));
+		
+		Vector3 magnetometer = tmpVec;
+		sensors.magnetometer.get(magnetometer);
+		magnetometerX.setLowerBound(chartIndex - MAGNETOMETER_DATA_POINTS + 1);
+		magnetometerX.setUpperBound(chartIndex);
+		while (magnetometerXData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
+			magnetometerXData.getData().remove(0);
+		}
+		while (magnetometerYData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
+			magnetometerYData.getData().remove(0);
+		}
+		while (magnetometerZData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
+			magnetometerZData.getData().remove(0);
+		}
+		magnetometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.x));
+		magnetometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.y));
+		magnetometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.z));
 	}
 	
 	@FXML

@@ -7,6 +7,7 @@ public class Settings {
 	public boolean test;
 	public LoggingSettings logging;
 	public ServerSettings server;
+	public StatusSettings status;
 	public DevicesSettings devices;
 
 	public static class LoggingSettings {
@@ -18,10 +19,15 @@ public class Settings {
 		public int port;
 	}
 	
+	public static class StatusSettings {
+		public boolean enabled;
+	}
+	
 	public static class DevicesSettings {
 		public XTend900Settings xtend900;
 		public ADXL345Settings adxl345;
 		public ITG3205Settings itg3205;
+		public HMC5883LSettings hmc5883l;
 		public MS5611Settings ms5611;
 		public ADS1115Settings ads1115;
 		public GPSSettings gps;
@@ -29,6 +35,7 @@ public class Settings {
 	
 	public static class XTend900Settings {
 		public boolean enabled;
+		public String logFile;
 		public boolean txLedEnabled;
 		public boolean sendSensorData;
 		public String device;
@@ -45,6 +52,11 @@ public class Settings {
 		public boolean enabled;
 		public String logFile;
 		public long throttle;
+	}
+	
+	public static class HMC5883LSettings {
+		public boolean enabled;
+		public String logFile;
 	}
 	
 	public static class MS5611Settings {

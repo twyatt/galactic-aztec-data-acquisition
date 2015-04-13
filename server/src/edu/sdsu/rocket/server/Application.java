@@ -39,6 +39,7 @@ import com.pi4j.io.serial.SerialFactory;
 import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
 import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
+import edu.sdsu.rocket.core.io.HMC5883LOutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
 import edu.sdsu.rocket.core.io.MS5611OutputStream;
 import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
@@ -50,11 +51,16 @@ import edu.sdsu.rocket.pi.Settings;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
 import edu.sdsu.rocket.pi.devices.DeviceManager;
+import edu.sdsu.rocket.pi.devices.HMC5883L;
+import edu.sdsu.rocket.pi.devices.HMC5883L.DataOutputRate;
+import edu.sdsu.rocket.pi.devices.HMC5883L.MagnetometerListener;
+import edu.sdsu.rocket.pi.devices.HMC5883L.OperatingMode;
 import edu.sdsu.rocket.pi.devices.ITG3205;
 import edu.sdsu.rocket.pi.devices.ITG3205.GyroscopeListener;
 import edu.sdsu.rocket.pi.devices.MS5611;
 import edu.sdsu.rocket.pi.devices.MockADS1115;
 import edu.sdsu.rocket.pi.devices.MockADXL345;
+import edu.sdsu.rocket.pi.devices.MockHMC5883L;
 import edu.sdsu.rocket.pi.devices.MockITG3205;
 import edu.sdsu.rocket.pi.devices.MockMS5611;
 import edu.sdsu.rocket.pi.io.radio.APIFrameListener;
@@ -155,6 +161,7 @@ public class Application {
 	protected void setupDevices() throws IOException {
 		setupAccelerometer();
 		setupGyroscope();
+		setupMagnetometer();
 		setupBarometer();
 		setupADC();
 		setupGPS();
@@ -226,7 +233,39 @@ public class Application {
 			}
 			
 		});
-		manager.add(itg3205).setThrottle(settings.devices.itg3205.throttle);
+		manager
+			.add(itg3205)
+			.setThrottle(settings.devices.itg3205.throttle);
+	}
+	
+	private void setupMagnetometer() throws IOException, FileNotFoundException {
+		if (!settings.devices.hmc5883l.enabled) return;
+		System.out.println("Setup Magnetometer [HMC5883L].");
+		final HMC5883LOutputStream hmc5883llog = log.getHMC5883LOutputStream();
+		
+		HMC5883L hmc5883l = settings.test ? new MockHMC5883L() : new HMC5883L();
+		hmc5883l
+			.setDataOutputRate(DataOutputRate.RATE_75)
+			.setOperatingMode(OperatingMode.CONTINUOUS)
+			.setup();
+		local.magnetometer.setScalingFactor(hmc5883l.getGain().getResolution());
+		hmc5883l.setListener(new MagnetometerListener() {
+			@Override
+			public void onValues(short x, short y, short z) {
+				local.magnetometer.setRawX(x);
+				local.magnetometer.setRawY(y);
+				local.magnetometer.setRawZ(z);
+				try {
+					hmc5883llog.writeValues(x, y, z);
+				} catch (IOException e) {
+					System.err.println(e);
+				}
+			}
+			
+		});
+		manager
+			.add(hmc5883l)
+			.setSleep(hmc5883l.getDataOutputRate().getDelay());
 	}
 	
 	private void setupBarometer() throws IOException {
@@ -260,7 +299,9 @@ public class Application {
 			}
 		});
 		
-		manager.add(ms5611).setThrottle(settings.devices.ms5611.throttle);
+		manager
+			.add(ms5611)
+			.setThrottle(settings.devices.ms5611.throttle);
 	}
 
 	private void setupADC() throws IOException {
@@ -297,6 +338,10 @@ public class Application {
 				} catch (IOException e) {
 					System.err.println(e);
 				}
+			}
+			@Override
+			public void onConversionTimeout() {
+				// TODO Auto-generated method stub
 			}
 		});
 		
@@ -365,6 +410,8 @@ public class Application {
 	}
 	
 	private void setupStatusMonitor() {
+		if (settings.test) return;
+		if (!settings.status.enabled) return;
 		System.out.println("Setup status monitor.");
 		
 		GpioController gpio = GpioFactory.getInstance();
@@ -467,6 +514,8 @@ public class Application {
 			System.out.println("A: accelerometer (remote)");
 			System.out.println("y: gyroscope (local)");
 			System.out.println("Y: gyroscope (remote)");
+			System.out.println("m: magnetometer (local)");
+			System.out.println("M: magnetometer (remote)");
 			System.out.println("b: barometer (local)");
 			System.out.println("B: barometer (remote)");
 			System.out.println("c: analog (local)");
@@ -496,6 +545,14 @@ public class Application {
 		case 'A':
 			remote.accelerometer.get(tmpVec);
 			System.out.println(tmpVec.scl(9.8f) + " m/s^2");
+			break;
+		case 'm':
+			local.magnetometer.get(tmpVec);
+			System.out.println(tmpVec + " Gauss");
+			break;
+		case 'M':
+			remote.magnetometer.get(tmpVec);
+			System.out.println(tmpVec + " Gauss");
 			break;
 		case 'b':
 			System.out.println(local.barometer.getTemperature() + " C, " + local.barometer.getPressure() + " mbar");

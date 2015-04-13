@@ -6,12 +6,12 @@ public class Radio {
 
 	private final AtomicInteger signalStrength = new AtomicInteger();
 	
-	public void setSignalStrength(int signalStrength) {
+	public void setSignalStrength(byte signalStrength) {
 		this.signalStrength.set(signalStrength);
 	}
 	
-	public int getSignalStrength() {
-		return signalStrength.get();
+	public byte getSignalStrength() {
+		return (byte) (signalStrength.get() & 0xFF);
 	}
 	
 }

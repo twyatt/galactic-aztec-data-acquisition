@@ -13,6 +13,7 @@ import com.badlogic.gdx.utils.Array;
 
 import edu.sdsu.rocket.core.io.ADS1115OutputStream;
 import edu.sdsu.rocket.core.io.ADXL345OutputStream;
+import edu.sdsu.rocket.core.io.HMC5883LOutputStream;
 import edu.sdsu.rocket.core.io.ITG3205OutputStream;
 import edu.sdsu.rocket.core.io.MS5611OutputStream;
 import edu.sdsu.rocket.core.io.OutputStreamMultiplexer;
@@ -23,13 +24,13 @@ public class Logging {
 	
 	private ADXL345OutputStream adxl345Log;
 	private ITG3205OutputStream itg3205Log;
+	private HMC5883LOutputStream hmc5883llog;
 	private MS5611OutputStream ms5611Log;
 	private ADS1115OutputStream ads1115Log;
 	private OutputStreamMultiplexer gpsLog;
 
 	private final Settings settings;
 	private final Array<File> dirs = new Array<File>();
-
 	
 	public Logging(Settings settings) throws IOException {
 		this.settings = settings;
@@ -55,6 +56,13 @@ public class Logging {
 		return dirs;
 	}
 	
+	public ADXL345OutputStream getADXL345OutputStream() throws FileNotFoundException {
+		if (adxl345Log == null) {
+			adxl345Log = openADXL345OutputStream();
+		}
+		return adxl345Log;
+	}
+	
 	public ADXL345OutputStream openADXL345OutputStream() throws FileNotFoundException {
 		String file = settings.devices.adxl345.logFile;
 		if (file == null) {
@@ -71,18 +79,18 @@ public class Logging {
 		return out;
 	}
 	
-	public ADXL345OutputStream getADXL345OutputStream() throws FileNotFoundException {
-		if (adxl345Log == null) {
-			adxl345Log = openADXL345OutputStream();
-		}
-		return adxl345Log;
-	}
-	
 	public void closeADXL345OutputStream() throws IOException {
 		if (adxl345Log != null) {
 			adxl345Log.close();
 		}
 		adxl345Log = null;
+	}
+	
+	public ITG3205OutputStream getITG3205OutputStream() throws FileNotFoundException {
+		if (itg3205Log == null) {
+			itg3205Log = openITG3205OutputStream();
+		}
+		return itg3205Log;
 	}
 	
 	public ITG3205OutputStream openITG3205OutputStream() throws FileNotFoundException {
@@ -101,13 +109,6 @@ public class Logging {
 		return out;
 	}
 	
-	public ITG3205OutputStream getITG3205OutputStream() throws FileNotFoundException {
-		if (itg3205Log == null) {
-			itg3205Log = openITG3205OutputStream();
-		}
-		return itg3205Log;
-	}
-	
 	public void closeITG3205OutputStream() throws IOException {
 		if (itg3205Log != null) {
 			itg3205Log.close();
@@ -115,6 +116,43 @@ public class Logging {
 		itg3205Log = null;
 	}
 	
+	public HMC5883LOutputStream getHMC5883LOutputStream() throws FileNotFoundException {
+		if (hmc5883llog == null) {
+			hmc5883llog = openHMC5883LOutputStream();
+		}
+		return hmc5883llog;
+	}
+	
+	public HMC5883LOutputStream openHMC5883LOutputStream() throws FileNotFoundException {
+		String file = settings.devices.hmc5883l.logFile;
+		if (file == null) {
+			throw new RuntimeException("HMC5883L logFile not defined.");
+		}
+		
+		OutputStreamMultiplexer multiplexer = new OutputStreamMultiplexer();
+		HMC5883LOutputStream out = new HMC5883LOutputStream(multiplexer);
+		
+		for (File d : dirs) {
+			File f = new File(d + FILE_SEPARATOR + file);
+			multiplexer.add(new FileOutputStream(f));
+		}
+		return out;
+	}
+	
+	public void closeHMC5883LOutputStream() throws IOException {
+		if (hmc5883llog != null) {
+			hmc5883llog.close();
+		}
+		hmc5883llog = null;
+	}
+	
+	public MS5611OutputStream getMS5611OutputStream() throws FileNotFoundException {
+		if (ms5611Log == null) {
+			ms5611Log = openMS5611OutputStream();
+		}
+		return ms5611Log;
+	}
+
 	public MS5611OutputStream openMS5611OutputStream() throws FileNotFoundException {
 		String file = settings.devices.ms5611.logFile;
 		if (file == null) {
@@ -131,18 +169,18 @@ public class Logging {
 		return out;
 	}
 	
-	public MS5611OutputStream getMS5611OutputStream() throws FileNotFoundException {
-		if (ms5611Log == null) {
-			ms5611Log = openMS5611OutputStream();
-		}
-		return ms5611Log;
-	}
-	
 	public void closeMS5611OutputStream() throws IOException {
 		if (ms5611Log != null) {
 			ms5611Log.close();
 		}
 		ms5611Log = null;
+	}
+	
+	public ADS1115OutputStream getADS1115OutputStream() throws FileNotFoundException {
+		if (ads1115Log == null) {
+			ads1115Log = openADS1115OutputStream();
+		}
+		return ads1115Log;
 	}
 	
 	public ADS1115OutputStream openADS1115OutputStream() throws FileNotFoundException {
@@ -161,18 +199,18 @@ public class Logging {
 		return out;
 	}
 	
-	public ADS1115OutputStream getADS1115OutputStream() throws FileNotFoundException {
-		if (ads1115Log == null) {
-			ads1115Log = openADS1115OutputStream();
-		}
-		return ads1115Log;
-	}
-	
 	public void closeADS1115OutputStream() throws IOException {
 		if (ads1115Log != null) {
 			ads1115Log.close();
 		}
 		ads1115Log = null;
+	}
+	
+	public OutputStream getGPSOutputStream() throws FileNotFoundException {
+		if (gpsLog == null) {
+			gpsLog = openGPSOutputStream();
+		}
+		return gpsLog;
 	}
 	
 	public OutputStreamMultiplexer openGPSOutputStream() throws FileNotFoundException {
@@ -185,13 +223,6 @@ public class Logging {
 		for (File d : dirs) {
 			File f = new File(d + FILE_SEPARATOR + file);
 			gpsLog.add(new FileOutputStream(f));
-		}
-		return gpsLog;
-	}
-	
-	public OutputStream getGPSOutputStream() throws FileNotFoundException {
-		if (gpsLog == null) {
-			gpsLog = openGPSOutputStream();
 		}
 		return gpsLog;
 	}
@@ -230,5 +261,5 @@ public class Logging {
 			System.err.println(e);
 		}
 	}
-	
+
 }
