@@ -28,9 +28,11 @@ public class Logging {
 	private MS5611OutputStream ms5611Log;
 	private ADS1115OutputStream ads1115Log;
 	private OutputStreamMultiplexer gpsLog;
+	private OutputStreamMultiplexer xtend900log;
 
 	private final Settings settings;
 	private final Array<File> dirs = new Array<File>();
+
 	
 	public Logging(Settings settings) throws IOException {
 		this.settings = settings;
@@ -234,6 +236,34 @@ public class Logging {
 		gpsLog = null;
 	}
 	
+	public OutputStream getXTend900OutputStream() throws FileNotFoundException {
+		if (xtend900log == null) {
+			xtend900log = openXTend900OutputStream();
+		}
+		return xtend900log;
+	}
+	
+	public OutputStreamMultiplexer openXTend900OutputStream() throws FileNotFoundException {
+		String file = settings.devices.xtend900.logFile;
+		if (file == null) {
+			throw new RuntimeException("XTend 900 logFile not defined.");
+		}
+		
+		xtend900log = new OutputStreamMultiplexer();
+		for (File d : dirs) {
+			File f = new File(d + FILE_SEPARATOR + file);
+			xtend900log.add(new FileOutputStream(f));
+		}
+		return xtend900log;
+	}
+	
+	public void closeXTend900OutputStream() throws IOException {
+		if (xtend900log != null) {
+			xtend900log.close();
+		}
+		xtend900log = null;
+	}
+	
 	public void close() {
 		try {
 			closeADXL345OutputStream();
@@ -242,6 +272,11 @@ public class Logging {
 		}
 		try {
 			closeITG3205OutputStream();
+		} catch (IOException e) {
+			System.err.println(e);
+		}
+		try {
+			closeHMC5883LOutputStream();
 		} catch (IOException e) {
 			System.err.println(e);
 		}
@@ -257,6 +292,11 @@ public class Logging {
 		}
 		try {
 			closeGPSOutputStream();
+		} catch (IOException e) {
+			System.err.println(e);
+		}
+		try {
+			closeXTend900OutputStream();
 		} catch (IOException e) {
 			System.err.println(e);
 		}

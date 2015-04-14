@@ -468,6 +468,9 @@ public class Application {
 		
 		radio = new XTend900(serial);
 		radio.setup();
+		if (settings.devices.xtend900.logFile != null) {
+			radio.setLogOutputStream(log.getXTend900OutputStream());
+		}
 		radio.setAPIListener(new APIFrameListener() {
 			@Override
 			public void onRXPacket(RXPacket packet) {
@@ -628,6 +631,9 @@ public class Application {
 			if (radio != null) {
 				if (radio.isOn()) {
 					radio.turnOff();
+					if (transmitter != null && !transmitter.isPaused()) {
+						transmitter.pause();
+					}
 				} else {
 					try {
 						radio.configure(settings.devices.xtend900.config);
@@ -638,6 +644,7 @@ public class Application {
 					}
 				}
 				System.out.println("Radio power is now " + (radio.isOn() ? "ON" : "OFF") + ".");
+				System.out.println("Radio transmission is now " + (transmitter != null && !transmitter.isPaused() ? "ON" : "OFF") + ".");
 			}
 			break;
 		case 't':
