@@ -15,7 +15,11 @@ public class DeviceManager {
 	private List<DeviceThread> threads = new ArrayList<DeviceThread>();
 	
 	public DeviceRunnable add(Device device) {
-		DeviceRunnable runnable = new DeviceRunnable(device);
+		return add(device, false);
+	}
+	
+	public DeviceRunnable add(Device device, boolean startPaused) {
+		DeviceRunnable runnable = new DeviceRunnable(device, startPaused);
 		DeviceThread thread = new DeviceThread(runnable);
 		thread.setName(device.getClass().getSimpleName());
 		threads.add(thread);
@@ -73,10 +77,15 @@ public class DeviceManager {
 		final Device device;
 
 		public DeviceRunnable(Device device) {
+			this(device, false);
+		}
+		
+		public DeviceRunnable(Device device, boolean startPaused) {
+			super(startPaused);
 			if (device == null) throw new NullPointerException();
 			this.device = device;
 		}
-		
+
 		/**
 		 * Set the throttle of the runnable loop.
 		 * 

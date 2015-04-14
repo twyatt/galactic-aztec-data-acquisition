@@ -94,6 +94,20 @@ public class XTend900 implements SerialDataEventListener {
 		if (!isOn()) {
 			turnOn();
 		}
+		
+		// setup serial listener to see command responses
+		SerialDataEventListener listener = new SerialDataEventListener() {
+			@Override
+			public void dataReceived(SerialDataEvent event) {
+				try {
+					System.out.println(event.getAsciiString());
+				} catch (IOException e) {
+					System.err.println(e);
+				}
+			}
+		};
+		serial.addListener(listener);
+		
 		if (!isCommandMode) {
 			enterCommandMode();
 		}
@@ -116,6 +130,9 @@ public class XTend900 implements SerialDataEventListener {
 		
 		Thread.sleep(500L);
 		isCommandMode = false;
+		
+		// clean up serial listener
+		serial.removeListener(listener);
 	}
 	
 	public XTend900 enterCommandMode() throws IllegalStateException, IOException, InterruptedException {

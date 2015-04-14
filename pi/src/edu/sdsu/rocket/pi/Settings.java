@@ -5,6 +5,7 @@ import edu.sdsu.rocket.pi.io.radio.XTend900Config;
 public class Settings {
 	
 	public boolean test;
+	public boolean debug;
 	public LoggingSettings logging;
 	public ServerSettings server;
 	public StatusSettings status;

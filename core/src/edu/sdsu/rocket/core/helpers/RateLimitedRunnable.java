@@ -12,12 +12,24 @@ public abstract class RateLimitedRunnable implements Runnable {
 	private Object lock = new Object();
 	private boolean isPaused;
 	
-	public RateLimitedRunnable() {}
-	
-	public RateLimitedRunnable(long sleepMilliseconds) {
-		setSleep(sleepMilliseconds);
+	public RateLimitedRunnable() {
+		this(0L, false);
 	}
 	
+	public RateLimitedRunnable(boolean startPaused) {
+		this(0L, startPaused);
+	}
+	
+	public RateLimitedRunnable(long sleepMilliseconds) {
+		this(sleepMilliseconds, false);
+	}
+	
+	public RateLimitedRunnable(long sleepMilliseconds, boolean startPaused) {
+		setSleep(sleepMilliseconds);
+		isPaused = startPaused;
+	}
+	
+
 	/**
 	 * Sets the running frequency.
 	 * 
@@ -76,8 +88,8 @@ public abstract class RateLimitedRunnable implements Runnable {
 	}
 	
 	public void resume() {
-		if (isPaused) {
-			synchronized (lock) {
+		synchronized (lock) {
+			if (isPaused) {
 				isPaused = false;
 				lock.notifyAll();
 			}

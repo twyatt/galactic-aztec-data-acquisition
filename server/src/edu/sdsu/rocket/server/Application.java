@@ -32,8 +32,6 @@ import com.pi4j.io.gpio.GpioPinDigitalInput;
 import com.pi4j.io.gpio.PinPullResistance;
 import com.pi4j.io.gpio.RaspiPin;
 import com.pi4j.io.serial.Serial;
-import com.pi4j.io.serial.SerialDataEvent;
-import com.pi4j.io.serial.SerialDataEventListener;
 import com.pi4j.io.serial.SerialFactory;
 
 import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
@@ -51,6 +49,7 @@ import edu.sdsu.rocket.pi.Settings;
 import edu.sdsu.rocket.pi.devices.ADS1115;
 import edu.sdsu.rocket.pi.devices.ADXL345;
 import edu.sdsu.rocket.pi.devices.DeviceManager;
+import edu.sdsu.rocket.pi.devices.DeviceManager.DeviceRunnable;
 import edu.sdsu.rocket.pi.devices.HMC5883L;
 import edu.sdsu.rocket.pi.devices.HMC5883L.DataOutputRate;
 import edu.sdsu.rocket.pi.devices.HMC5883L.MagnetometerListener;
@@ -101,6 +100,7 @@ public class Application {
 	private final SensorServer server = new SensorServer(local, remote);
 	
 	private XTend900 radio;
+	private DeviceRunnable transmitter;
 	private Thread statusThread;
 	
 	private final Vector3 tmpVec = new Vector3();
@@ -165,6 +165,14 @@ public class Application {
 		setupBarometer();
 		setupADC();
 		setupGPS();
+		
+		try {
+			setupRadio();
+		} catch (IllegalStateException e) {
+			throw new IOException(e);
+		} catch (InterruptedException e) {
+			throw new IOException(e);
+		}
 	}
 	
 	private void setupAccelerometer() throws IOException {
@@ -198,7 +206,9 @@ public class Application {
 				}
 			}
 		});
-		manager.add(adxl345).setThrottle(settings.devices.adxl345.throttle);
+		manager
+			.add(adxl345)
+			.setThrottle(settings.devices.adxl345.throttle);
 	}
 
 	private void setupGyroscope() throws IOException, FileNotFoundException {
@@ -295,7 +305,10 @@ public class Application {
 				} catch (IOException e) {
 					System.err.println(e);
 				}
-				System.err.println("MS5611 fault: " + fault);
+				
+				if (settings.debug) {
+					System.err.println("MS5611 fault: " + fault);
+				}
 			}
 		});
 		
@@ -341,7 +354,9 @@ public class Application {
 			}
 			@Override
 			public void onConversionTimeout() {
-				// TODO Auto-generated method stub
+				if (settings.debug) {
+					System.err.println("ADS1115 conversion timeout.");
+				}
 			}
 		});
 		
@@ -444,20 +459,6 @@ public class Application {
 		System.out.println("Config: " + config);
 		
 		Serial serial = SerialFactory.createInstance();
-		
-		// setup serial listener to see command responses
-		SerialDataEventListener listener = new SerialDataEventListener() {
-			@Override
-			public void dataReceived(SerialDataEvent event) {
-				try {
-					System.out.println(event.getAsciiString());
-				} catch (IOException e) {
-					System.err.println(e);
-				}
-			}
-		};
-		serial.addListener(listener);
-		
 		String device = settings.devices.xtend900.device;
 		
 		int baud = config.getInterfaceDataRate() == null
@@ -466,7 +467,7 @@ public class Application {
 		serial.open(device, baud);
 		
 		radio = new XTend900(serial);
-		radio.setup().configure(config);
+		radio.setup();
 		radio.setAPIListener(new APIFrameListener() {
 			@Override
 			public void onRXPacket(RXPacket packet) {
@@ -491,14 +492,9 @@ public class Application {
 			}
 		});
 		
-		// clean up serial listener
-		serial.removeListener(listener);
-		
-//		Thread.sleep(1000L);
-//		radio.turnOff();
-		
 		if (settings.devices.xtend900.sendSensorData) {
-			manager.add(new SensorsTransmitter(radio, local));
+			boolean startPaused = true;
+			transmitter = manager.add(new SensorsTransmitter(radio, local), startPaused);
 		}
 	}
 	
@@ -508,24 +504,18 @@ public class Application {
 			System.out.println();
 			System.out.println("?: help");
 			System.out.println("f: loop frequency");
-			System.out.println("s: system status (local)");
-			System.out.println("S: system status (remote)");
-			System.out.println("a: accelerometer (local)");
-			System.out.println("A: accelerometer (remote)");
-			System.out.println("y: gyroscope (local)");
-			System.out.println("Y: gyroscope (remote)");
-			System.out.println("m: magnetometer (local)");
-			System.out.println("M: magnetometer (remote)");
-			System.out.println("b: barometer (local)");
-			System.out.println("B: barometer (remote)");
-			System.out.println("c: analog (local)");
-			System.out.println("C: analog (remote)");
-			System.out.println("g: gps (local)");
-			System.out.println("G: gps (remote)");
-			System.out.println("r: radio (local)");
-			System.out.println("R: radio (remote)");
-			System.out.println("1: start radio (currently " + (radio == null ? "NOT " : "") + "started)");
-			System.out.println("2: toggle radio (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
+			System.out.println("s/S: system status (local/remote)");
+			System.out.println("a/A: accelerometer (local/remote)");
+			System.out.println("g/G: gyroscope (local/remote)");
+			System.out.println("m/M: magnetometer (local/remote)");
+			System.out.println("b/B: barometer (local/remote)");
+			System.out.println("c/C: analog (local/remote)");
+			System.out.println("p/P: gps (local/remote)");
+			System.out.println("r/R: radio (local/remote)");
+			if (radio != null) {
+				System.out.println("d: toggle radio power (currently " + (radio != null && radio.isOn() ? "ON" : "OFF") + ")");
+				System.out.println("t: toggle radio transmission (currently " + (transmitter != null && !transmitter.isPaused() ? "ON" : "OFF") + ")");
+			}
 			System.out.println("q: quit");
 			System.out.println();
 			break;
@@ -560,11 +550,11 @@ public class Application {
 		case 'B':
 			System.out.println(remote.barometer.getTemperature() + " C, " + remote.barometer.getPressure() + " mbar");
 			break;
-		case 'y':
+		case 'g':
 			local.gyroscope.get(tmpVec);
 			System.out.println(tmpVec + " deg/s");
 			break;
-		case 'Y':
+		case 'G':
 			remote.gyroscope.get(tmpVec);
 			System.out.println(tmpVec + " deg/s");
 			break;
@@ -584,7 +574,7 @@ public class Application {
 					"A3=" + remote.analog.getA3() + " mV"
 					);
 			break;
-		case 'g':
+		case 'p':
 			int localFix = local.gps.getFixStatus();
 			String lf;
 			switch (localFix) {
@@ -606,7 +596,7 @@ public class Application {
 					"satellites=" + local.gps.getSatellites()
 					);
 			break;
-		case 'G':
+		case 'P':
 			int remoteFix = local.gps.getFixStatus();
 			String rf;
 			switch (remoteFix) {
@@ -634,23 +624,30 @@ public class Application {
 		case 'R':
 			System.out.println("Signal Strength: -" + remote.radio.getSignalStrength() + " dBm");
 			break;
-		case '1':
-			if (radio == null) {
-				try {
-					setupRadio();
-				} catch (IllegalStateException e) {
-					System.err.println(e);
-				} catch (InterruptedException e) {
-					System.err.println(e);
+		case 'd':
+			if (radio != null) {
+				if (radio.isOn()) {
+					radio.turnOff();
+				} else {
+					try {
+						radio.configure(settings.devices.xtend900.config);
+					} catch (IllegalStateException e) {
+						System.err.println(e);
+					} catch (InterruptedException e) {
+						System.err.println(e);
+					}
 				}
-			} else {
-				System.out.println("Radio already started.");
+				System.out.println("Radio power is now " + (radio.isOn() ? "ON" : "OFF") + ".");
 			}
 			break;
-		case '2':
-			if (radio != null) {
-				radio.toggle();
-				System.out.println("Radio is now " + (radio.isOn() ? "ON" : "OFF") + ".");
+		case 't':
+			if (transmitter != null) {
+				if (transmitter.isPaused()) {
+					transmitter.resume();
+				} else {
+					transmitter.pause();
+				}
+				System.out.println("Radio transmission is now " + (transmitter.isPaused() ? "OFF" : "ON") + ".");
 			}
 			break;
 		case 'q':
