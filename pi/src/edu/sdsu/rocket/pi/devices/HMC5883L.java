@@ -22,19 +22,19 @@ public class HMC5883L implements Device {
 	private static final int DEFAULT_IDENTIFICATION = 0x483433;
 	
 	public enum Register {
-		CONFIGURATION_REGISTER_A  (0x00), // R/W
-		CONFIGURATION_REGISTER_B  (0x01), // R/W
-		MODE_REGISTER             (0x02), // R/W
-		DATA_OUTPUT_X_MSB_REGISTER(0x03), // R
-		DATA_OUTPUT_X_LSB_REGISTER(0x04), // R
-		DATA_OUTPUT_Z_MSB_REGISTER(0x05), // R
-		DATA_OUTPUT_Z_LSB_REGISTER(0x06), // R
-		DATA_OUTPUT_Y_MSB_REGISTER(0x07), // R
-		DATA_OUTPUT_Y_LSB_REGISTER(0x08), // R
-		STATUS_REGISTER           (0x09), // R
-		IDENTIFICATION_REGISTER_A (0x10), // R
-		IDENTIFICATION_REGISTER_B (0x11), // R
-		IDENTIFICATION_REGISTER_C (0x12), // R
+		CONFIGURATION_REGISTER_A  ( 0), // R/W
+		CONFIGURATION_REGISTER_B  ( 1), // R/W
+		MODE_REGISTER             ( 2), // R/W
+		DATA_OUTPUT_X_MSB_REGISTER( 3), // R
+		DATA_OUTPUT_X_LSB_REGISTER( 4), // R
+		DATA_OUTPUT_Z_MSB_REGISTER( 5), // R
+		DATA_OUTPUT_Z_LSB_REGISTER( 6), // R
+		DATA_OUTPUT_Y_MSB_REGISTER( 7), // R
+		DATA_OUTPUT_Y_LSB_REGISTER( 8), // R
+		STATUS_REGISTER           ( 9), // R
+		IDENTIFICATION_REGISTER_A (10), // R
+		IDENTIFICATION_REGISTER_B (11), // R
+		IDENTIFICATION_REGISTER_C (12), // R
 		;
 		final int address;
 		Register(int address) {
@@ -243,12 +243,10 @@ public class HMC5883L implements Device {
 	public int getIdentification() throws IOException {
 		int address = Register.IDENTIFICATION_REGISTER_A.address;
 		int offset = 0;
-		int size = 6;
+		int size = 3;
 		i2c.read(address, BUFFER, offset, size);
 		
-		int identification = (BUFFER[0] << 36) | (BUFFER[1] << 32)
-				| (BUFFER[2] << 24) | (BUFFER[3] << 16)
-				| (BUFFER[4] << 8)  | (BUFFER[5] & 0xFF);
+		int identification = (BUFFER[0] << 16) | (BUFFER[1] << 8) | (BUFFER[2] & 0xFF);
 		return identification;
 	}
 	

@@ -183,11 +183,12 @@ public class Application {
 		ADXL345 adxl345 = settings.test ? new MockADXL345() : new ADXL345();
 		adxl345.setup();
 		if (!adxl345.verifyDeviceID()) {
-			throw new IOException("Failed to verify ADXL345 device ID");
+			throw new IOException("Failed to verify ADXL345 device ID.");
 		}
 		adxl345.writeRange(ADXL345.ADXL345_RANGE_16G);
 		adxl345.writeFullResolution(true);
 		adxl345.writeRate(ADXL345.ADXL345_RATE_400);
+		
 		float scalingFactor = adxl345.getScalingFactor();
 		local.accelerometer.setScalingFactor(scalingFactor);
 		adxl345log.writeScalingFactor(scalingFactor);
@@ -206,6 +207,7 @@ public class Application {
 				}
 			}
 		});
+		
 		manager
 			.add(adxl345)
 			.setThrottle(settings.devices.adxl345.throttle);
@@ -219,7 +221,7 @@ public class Application {
 		ITG3205 itg3205 = settings.test ? new MockITG3205() : new ITG3205();
 		itg3205.setup();
 		if (!itg3205.verifyDeviceID()) {
-			throw new IOException("Failed to verify ITG3205 device ID");
+			throw new IOException("Failed to verify ITG3205 device ID.");
 		}
 		// F_sample = F_internal / (divider + 1)
 		// divider = F_internal / F_sample - 1
@@ -243,6 +245,7 @@ public class Application {
 			}
 			
 		});
+		
 		manager
 			.add(itg3205)
 			.setThrottle(settings.devices.itg3205.throttle);
@@ -258,7 +261,16 @@ public class Application {
 			.setDataOutputRate(DataOutputRate.RATE_75)
 			.setOperatingMode(OperatingMode.CONTINUOUS)
 			.setup();
-		local.magnetometer.setScalingFactor(hmc5883l.getGain().getResolution());
+		
+		if (!hmc5883l.verifyIdentification()) {
+			throw new IOException("Failed to verify HMC5883L identification: " + Integer.toHexString(hmc5883l.getIdentification()));
+		}
+		
+		float scalingFactor = hmc5883l.getGain().getResolution();
+		local.magnetometer.setScalingFactor(scalingFactor);
+		hmc5883llog.writeScalingFactor(scalingFactor);
+		System.out.println("Scaling Factor: " + scalingFactor);
+		
 		hmc5883l.setListener(new MagnetometerListener() {
 			@Override
 			public void onValues(short x, short y, short z) {
@@ -273,6 +285,7 @@ public class Application {
 			}
 			
 		});
+		
 		manager
 			.add(hmc5883l)
 			.setSleep(hmc5883l.getDataOutputRate().getDelay());
@@ -541,11 +554,11 @@ public class Application {
 			break;
 		case 'm':
 			local.magnetometer.get(tmpVec);
-			System.out.println(tmpVec + " Gauss");
+			System.out.println(tmpVec + " Ga");
 			break;
 		case 'M':
 			remote.magnetometer.get(tmpVec);
-			System.out.println(tmpVec + " Gauss");
+			System.out.println(tmpVec + " Ga");
 			break;
 		case 'b':
 			System.out.println(local.barometer.getTemperature() + " C, " + local.barometer.getPressure() + " mbar");

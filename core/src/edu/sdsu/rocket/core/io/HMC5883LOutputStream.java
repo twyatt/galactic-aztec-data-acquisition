@@ -9,6 +9,7 @@ import edu.sdsu.rocket.core.helpers.Stopwatch;
 public class HMC5883LOutputStream extends DataOutputStream {
 
 	public static final byte SENSOR_VALUES  = 0x0;
+	public static final byte SCALING_FACTOR = 0x1;
 	
 	private final Stopwatch stopwatch = new Stopwatch();
 
@@ -16,6 +17,12 @@ public class HMC5883LOutputStream extends DataOutputStream {
 		super(out);
 	}
 
+	public void writeScalingFactor(float scalingFactor) throws IOException {
+		write(SCALING_FACTOR);
+		writeLong(stopwatch.nanoSecondsElapsed());
+		writeFloat(scalingFactor);
+	}
+	
 	public void writeValues(short x, short y, short z) throws IOException {
 		write(SENSOR_VALUES);
 		writeLong(stopwatch.nanoSecondsElapsed());
@@ -23,5 +30,5 @@ public class HMC5883LOutputStream extends DataOutputStream {
 		writeShort(y);
 		writeShort(z);
 	}
-	
+
 }
