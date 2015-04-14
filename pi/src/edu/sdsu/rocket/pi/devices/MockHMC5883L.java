@@ -14,6 +14,11 @@ public class MockHMC5883L extends HMC5883L {
 	}
 	
 	@Override
+	public boolean verifyIdentification() throws IOException {
+		return true;
+	}
+	
+	@Override
 	public void loop() throws IOException {
 		x += 0.01f;
 		float c = MathUtils.cos(x); // -1 to 1
