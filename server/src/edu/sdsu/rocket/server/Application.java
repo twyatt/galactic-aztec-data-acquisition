@@ -462,6 +462,10 @@ public class Application {
 	protected void setupServer() throws IOException {
 		System.out.println("Setup server.");
 		server.start(settings.server.port);
+		
+		if (settings.debug) {
+			server.setDebug(true);
+		}
 	}
 	
 	protected void setupRadio() throws IOException, IllegalStateException, InterruptedException {

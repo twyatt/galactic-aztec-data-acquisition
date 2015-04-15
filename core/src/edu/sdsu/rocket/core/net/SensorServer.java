@@ -6,6 +6,7 @@ import java.net.DatagramSocket;
 import java.net.SocketException;
 import java.nio.ByteBuffer;
 
+import edu.sdsu.rocket.core.helpers.ByteHelper;
 import edu.sdsu.rocket.core.models.Sensors;
 
 public class SensorServer {
@@ -19,9 +20,15 @@ public class SensorServer {
 	private final Sensors local;
 	private final Sensors remote;
 	
+	private boolean debug;
+	
 	public SensorServer(Sensors localSensors, Sensors remote) {
 		this.local = localSensors;
 		this.remote = remote;
+	}
+	
+	public void setDebug(boolean enabled) {
+		debug = enabled;
 	}
 	
 	public void start(int port) throws SocketException {
@@ -36,11 +43,16 @@ public class SensorServer {
 				try {
 					switch (message.id) {
 					case DatagramMessage.PING:
+						if (debug) System.out.println("Received ping request.");
 						sendPingResponse(message);
 						break;
 					case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
-					case DatagramMessage.SENSORS_REMOTE: // fall thru intentional
+					case DatagramMessage.SENSORS_REMOTE:
+						if (debug) System.out.println("Received sensors request.");
 						sendSensorResponse(message);
+						break;
+					default:
+						if (debug) System.out.println("Unknown request: " + ByteHelper.byteToHexString(message.id));
 						break;
 					}
 				} catch (IOException e) {

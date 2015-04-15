@@ -58,6 +58,7 @@ public class Sensors {
 		}
 		
 		if ((mask & MAGNETOMETER_MASK) != 0) {
+			buffer.putFloat(magnetometer.getScalingFactor());
 			buffer.putShort((short) magnetometer.getRawX());
 			buffer.putShort((short) magnetometer.getRawY());
 			buffer.putShort((short) magnetometer.getRawZ());
@@ -72,7 +73,7 @@ public class Sensors {
 		}
 		
 		if ((mask & RADIO_MASK) != 0) {
-			buffer.put(radio.getSignalStrength());
+			buffer.put((byte) (radio.getSignalStrength() & 0xFF));
 		}
 		
 		if ((mask & SYSTEM_MASK) != 0) {
@@ -115,6 +116,7 @@ public class Sensors {
 		}
 		
 		if ((mask & MAGNETOMETER_MASK) != 0) {
+			magnetometer.setScalingFactor(buffer.getFloat());
 			magnetometer.setRawX(buffer.getShort());
 			magnetometer.setRawY(buffer.getShort());
 			magnetometer.setRawZ(buffer.getShort());

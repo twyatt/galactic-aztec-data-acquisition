@@ -90,7 +90,7 @@ public class SensorClient {
 					onPingResponse(message);
 					break;
 				case DatagramMessage.SENSORS_LOCAL: // fall thru intentional
-				case DatagramMessage.SENSORS_REMOTE: // fall thru intentional
+				case DatagramMessage.SENSORS_REMOTE:
 					onSensorData(message);
 					break;
 				}
