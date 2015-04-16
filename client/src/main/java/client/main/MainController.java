@@ -36,6 +36,8 @@ import com.lynden.gmapsfx.javascript.object.GoogleMap;
 import com.lynden.gmapsfx.javascript.object.LatLong;
 import com.lynden.gmapsfx.javascript.object.MapOptions;
 import com.lynden.gmapsfx.javascript.object.MapTypeIdEnum;
+import com.lynden.gmapsfx.javascript.object.Marker;
+import com.lynden.gmapsfx.javascript.object.MarkerOptions;
 
 import edu.sdsu.rocket.core.models.Pressures;
 import edu.sdsu.rocket.core.models.Sensors;
@@ -48,12 +50,16 @@ import eu.hansolo.enzo.gauge.GaugeBuilder;
 @SuppressWarnings("deprecation")
 public class MainController {
 	
-	private static final double CHART_WIDTH  = 400;
-	private static final double CHART_HEIGHT = 300;
-	private static final double GAUGE_WIDTH  = 300;
-	private static final double GAUGE_HEIGHT = 300;
+	private static final double GAUGE_WIDTH  = 316;
+	private static final double GAUGE_HEIGHT = 316;
+	
+	private static final double CHART_WIDTH  = GAUGE_WIDTH * 2;
+	private static final double CHART_HEIGHT = 190;
 	
 	private static final long NANOSECONDS_PER_MILLISECOND = 1000000L;
+	private static final long MILLISECONDS_PER_SECOND     = 1000L;
+	
+	private static final long GPS_UPATE_INTERVAL_MILLIS = 1L * MILLISECONDS_PER_SECOND; // 1 Hz
 	
 	private static final boolean DEBUG_SENSORS = false;
 	
@@ -74,6 +80,9 @@ public class MainController {
 	@FXML private ToggleButton localButton;
 	@FXML private ToggleButton remoteButton;
 	@FXML private Label latencyLabel;
+	@FXML private Label signalLabel;
+	@FXML private Label gpsFixLabel;
+	@FXML private Label gpsSatellitesLabel;
 	@FXML private FlowPane gaugePane;
 	
 	@FXML
@@ -89,6 +98,7 @@ public class MainController {
 	private static final int ACCELEROMETER_DATA_POINTS = 50;
 	private static final int GYROSCOPE_DATA_POINTS     = 50;
 	private static final int MAGNETOMETER_DATA_POINTS  = 50;
+	private static final int BAROMETER_DATA_POINTS     = 50;
 	
 	private NumberAxis accelerometerX;
 	private Series<Number, Number> accelerometerXData = new XYChart.Series<Number, Number>();
@@ -104,6 +114,12 @@ public class MainController {
 	private Series<Number, Number> magnetometerXData = new XYChart.Series<Number, Number>();
 	private Series<Number, Number> magnetometerYData = new XYChart.Series<Number, Number>();
 	private Series<Number, Number> magnetometerZData = new XYChart.Series<Number, Number>();
+	
+	private NumberAxis barometerX;
+	private Series<Number, Number> barometerPressureData = new XYChart.Series<Number, Number>();
+	
+	private Marker marker;
+	private long lastGpsUpdateMillis = System.currentTimeMillis();
 
 	private static final Vector3 tmpVec = new Vector3();
 
@@ -137,6 +153,7 @@ public class MainController {
 							sensors = local;
 						}
 						updateSensors(sensors);
+						updateGPS();
 					}
 				});
 			}
@@ -166,15 +183,15 @@ public class MainController {
 			@Override
 			public void mapInitialized() {
 		        MapOptions mapOptions = new MapOptions();
-		        mapOptions.center(new LatLong(47.6097, -122.3331))
-		                .mapType(MapTypeIdEnum.TERRAIN)
+		        mapOptions.center(new LatLong(35.347218, -117.808392))
+		                .mapType(MapTypeIdEnum.SATELLITE)
 		                .overviewMapControl(false)
 		                .panControl(false)
 		                .rotateControl(false)
 		                .scaleControl(false)
 		                .streetViewControl(false)
-		                .zoomControl(false)
-		                .zoom(50);
+		                .zoomControl(true)
+		                .zoom(17);
 		        map = mapView.createMap(mapOptions);
 			}
 		});
@@ -198,10 +215,20 @@ public class MainController {
 				gauge.setSectionFill1(Color.RED);
 			}
 		} else {
-			motor    = makePressureGauge("Motor",    "PSI", Pressures.MOTOR_MAX_PRESSURE,    1);
 			lox      = makePressureGauge("LOX",      "PSI", Pressures.LOX_MAX_PRESSURE,      10);
 			kerosene = makePressureGauge("Kerosene", "PSI", Pressures.KEROSENE_MAX_PRESSURE, 10);
 			helium   = makePressureGauge("Helium",   "PSI", Pressures.HELIUM_MAX_PRESSURE,   50);
+			motor    = makePressureGauge("Motor",    "PSI", Pressures.MOTOR_MAX_PRESSURE,    10);
+			
+			lox.setSections(new Section(450, 550), new Section(550, 610), new Section(610, Pressures.LOX_MAX_PRESSURE));
+			lox.setSectionFill0(Color.GREEN);
+			lox.setSectionFill1(Color.YELLOW);
+			lox.setSectionFill2(Color.RED);
+			
+			kerosene.setSections(new Section(425, 500), new Section(500, 610), new Section(610, Pressures.KEROSENE_MAX_PRESSURE));
+			kerosene.setSectionFill0(Color.GREEN);
+			kerosene.setSectionFill1(Color.YELLOW);
+			kerosene.setSectionFill2(Color.RED);
 		}
 		
 		accelerometerX = new NumberAxis();
@@ -246,6 +273,16 @@ public class MainController {
 		magnetometer.getData().add(magnetometerYData);
 		magnetometer.getData().add(magnetometerZData);
 		
+		barometerX = new NumberAxis();
+		NumberAxis barometerY = new NumberAxis();
+		barometerX.setAutoRanging(false);
+		barometerX.setTickLabelsVisible(false);
+		barometerY.setLabel("Pressure (mbar)");
+		barometerY.setForceZeroInRange(false);
+		LineChart<Number, Number> barometer = makeChart("Barometer", barometerX, barometerY);
+		barometerPressureData.setName("Pressure");
+		barometer.getData().add(barometerPressureData);
+		
 		gaugePane.getChildren().add(lox);
 		gaugePane.getChildren().add(kerosene);
 		gaugePane.getChildren().add(helium);
@@ -253,6 +290,7 @@ public class MainController {
 		gaugePane.getChildren().add(accelerometer);
 		gaugePane.getChildren().add(gyroscope);
 		gaugePane.getChildren().add(magnetometer);
+		gaugePane.getChildren().add(barometer);
 	}
 
 	private LineChart<Number, Number> makeChart(String title, NumberAxis x, NumberAxis y) {
@@ -315,6 +353,7 @@ public class MainController {
 				magnetometerXData.getData().clear();
 				magnetometerYData.getData().clear();
 				magnetometerZData.getData().clear();
+				barometerPressureData.getData().clear();
 			}
 		});
 	}
@@ -385,8 +424,55 @@ public class MainController {
 		magnetometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.x));
 		magnetometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.y));
 		magnetometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.z));
+		
+		float pressure = sensors.barometer.getPressure();
+		barometerX.setLowerBound(chartIndex - BAROMETER_DATA_POINTS + 1);
+		barometerX.setUpperBound(chartIndex);
+		while (barometerPressureData.getData().size() >= BAROMETER_DATA_POINTS) {
+			barometerPressureData.getData().remove(0);
+		}
+		barometerPressureData.getData().add(new XYChart.Data<Number, Number>(chartIndex, pressure));
+		
+		signalLabel.setText("-" + sensors.radio.getSignalStrength());
+		
+		switch (sensors.gps.getFixStatus()) {
+		case 1: // no fix
+			gpsFixLabel.setText("No Fix");
+			break;
+		case 2: // 2D
+			gpsFixLabel.setText("2D");
+			break;
+		case 3: // 3D
+			gpsFixLabel.setText("3D");
+			break;
+		}
+		gpsSatellitesLabel.setText(String.valueOf(sensors.gps.getSatellites()));
 	}
 	
+	private void updateGPS() {
+		if (System.currentTimeMillis() - lastGpsUpdateMillis > GPS_UPATE_INTERVAL_MILLIS) {
+			lastGpsUpdateMillis = System.currentTimeMillis();
+			
+			if (marker != null) {
+				map.removeMarker(marker);
+				marker = null;
+			}
+			
+			if (remote.gps.getLatitude() != 0 && remote.gps.getLongitude() != 0) {
+				MarkerOptions options = new MarkerOptions();
+				options.title("Altitude: "+remote.gps.getAltitude() + " m");
+				options.position(new LatLong(remote.gps.getLatitude(), remote.gps.getLongitude()));
+				marker = new Marker(options);
+				map.addMarker(marker);
+			}
+			
+//			if (local.gps.getLatitude() != 0 && local.gps.getLongitude() != 0) {
+//				LatLong position = new LatLong(local.gps.getLatitude(), local.gps.getLongitude());
+//				map.setCenter(position);
+//			}
+		}
+	}
+
 	@FXML
 	private void onConnect(ActionEvent event) {
 		if (CONNECT.equals(connectButton.getText())) {

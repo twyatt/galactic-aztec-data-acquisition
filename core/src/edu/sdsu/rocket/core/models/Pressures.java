@@ -2,9 +2,9 @@ package edu.sdsu.rocket.core.models;
 
 public class Pressures {
 
-	public static final double MOTOR_MAX_PRESSURE    = 100;
-	public static final double LOX_MAX_PRESSURE      = 600;
-	public static final double KEROSENE_MAX_PRESSURE = 600;
+	public static final double MOTOR_MAX_PRESSURE    = 500;
+	public static final double LOX_MAX_PRESSURE      = 750;
+	public static final double KEROSENE_MAX_PRESSURE = 750;
 	public static final double HELIUM_MAX_PRESSURE   = 2500;
 	
 	private final Analog analog;

@@ -6,7 +6,7 @@
 <?import javafx.scene.layout.*?>
 <?import com.lynden.gmapsfx.*?>
 
-<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1024.0" stylesheets="@main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
+<BorderPane maxHeight="-Infinity" maxWidth="-Infinity" minHeight="-Infinity" minWidth="-Infinity" prefHeight="768.0" prefWidth="1280.0" stylesheets="@main.css" xmlns="http://javafx.com/javafx/8" xmlns:fx="http://javafx.com/fxml/1" fx:controller="client.main.MainController">
    <top>
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <items>
@@ -32,6 +32,15 @@
             <Separator orientation="VERTICAL" />
             <Label text="Latency" />
             <Label fx:id="latencyLabel" text="?" />
+            <Separator orientation="VERTICAL" />
+            <Label text="Signal" />
+            <Label fx:id="signalLabel" text="0" />
+            <Label text="dBm" />
+            <Separator orientation="VERTICAL" />
+            <Label text="GPS" />
+            <Label fx:id="gpsFixLabel" text="No Fix" />
+            <Label fx:id="gpsSatellitesLabel" text="0" />
+            <Label text="Satellites" />
          </items>
       </ToolBar>
    </top>

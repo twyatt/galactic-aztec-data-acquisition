@@ -16,6 +16,13 @@ public class GPS {
 		this.fixStatus.set(fixStatus);
 	}
 	
+	/**
+	 * 1 = No fix
+	 * 2 = 2D fix
+	 * 3 = 3D fix
+	 * 
+	 * @return
+	 */
 	public int getFixStatus() {
 		return fixStatus.get();
 	}
