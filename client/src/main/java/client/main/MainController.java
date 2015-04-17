@@ -24,6 +24,8 @@ import javafx.scene.control.TextField;
 import javafx.scene.control.Toggle;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.ClipboardContent;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 
@@ -59,9 +61,6 @@ public class MainController {
 	private static final double CHART_HEIGHT = 190;
 	
 	private static final long NANOSECONDS_PER_MILLISECOND = 1000000L;
-	private static final long MILLISECONDS_PER_SECOND     = 1000L;
-	
-	private static final long GPS_UPATE_INTERVAL_MILLIS = 1L * MILLISECONDS_PER_SECOND; // 1 Hz
 	
 	private static final boolean DEBUG_SENSORS = false;
 	
@@ -87,6 +86,15 @@ public class MainController {
 	@FXML private Label gpsSatellitesLabel;
 	@FXML private Label powerLabel;
 	@FXML private FlowPane gaugePane;
+	
+	@FXML private Label localLatitudeLabel;
+	@FXML private Label localLongitudeLabel;
+	@FXML private Label localAltitudeLabel;
+	@FXML private Button zeroLocalAltitudeButton;
+	@FXML private Label remoteLatitudeLabel;
+	@FXML private Label remoteLongitudeLabel;
+	@FXML private Label remoteAltitudeLabel;
+	@FXML private Button zeroRemoteAltitudeButton;
 	
 	@FXML
     private GoogleMapView mapView;
@@ -121,11 +129,16 @@ public class MainController {
 	private NumberAxis barometerX;
 	private Series<Number, Number> barometerPressureData = new XYChart.Series<Number, Number>();
 	
-	private Marker marker;
-	private long lastGpsUpdateMillis = System.currentTimeMillis();
-
+	double localAltitudeZero = Double.NaN;
+	double remoteAltitudeZero = Double.NaN;
+	
 	private static final Format LATENCY_FORMAT = new DecimalFormat("#.#");
+	private static final Format ALTITUDE_FORMAT = new DecimalFormat("#.##");
+	
 	private static final Vector3 tmpVec = new Vector3();
+	
+	private static final String ZERO_TEXT = "Zero";
+	private static final String UNZERO_TEXT = "Unzero";
 
 	/**
 	 * Constructor for the controller.
@@ -150,7 +163,6 @@ public class MainController {
 					@Override
 					public void run() {
 						updateSensors();
-						updateMap();
 					}
 				});
 			}
@@ -357,6 +369,13 @@ public class MainController {
 				gpsFixLabel.setText("?");
 				gpsSatellitesLabel.setText("?");
 				powerLabel.setText("?");
+				
+				localLatitudeLabel.setText("?");
+				localLongitudeLabel.setText("?");
+				localAltitudeLabel.setText("?");
+				remoteLatitudeLabel.setText("?");
+				remoteLongitudeLabel.setText("?");
+				remoteAltitudeLabel.setText("?");
 			}
 		});
 	}
@@ -370,17 +389,23 @@ public class MainController {
 			sensors = local;
 		}
 		
+		// toolbar
 		updateSignalStrength();
-		updateGPS(sensors);
+		updateGPSToolbar(sensors);
 		updatePower(sensors);
 		
+		// gauges
 		updatePressures(sensors);
 		
+		// charts
 		chartIndex++;
 		updateAccelerometer(sensors);
 		updateGyroscope(sensors);
 		updateMagnetometer(sensors);
 		updateBarometer(sensors);
+		
+		// GPS
+		updateGPS();
 	}
 
 	private void updateSignalStrength() {
@@ -395,7 +420,7 @@ public class MainController {
 		}
 	}
 
-	private void updateGPS(Sensors sensors) {
+	private void updateGPSToolbar(Sensors sensors) {
 		switch (sensors.gps.getFixStatus()) {
 		case 1: // no fix
 			gpsFixLabel.setText("No Fix");
@@ -407,7 +432,35 @@ public class MainController {
 			gpsFixLabel.setText("3D");
 			break;
 		}
-		gpsSatellitesLabel.setText(String.valueOf(sensors.gps.getSatellites()));
+		gpsSatellitesLabel.setText(""+sensors.gps.getSatellites());
+	}
+
+	private void updateGPS() {
+		String postfix;
+		
+		double localAltitudeMeters = local.gps.getAltitude();
+		if (Double.isNaN(localAltitudeZero)) {
+			postfix = "MSL";
+		} else {
+			localAltitudeMeters -= localAltitudeZero;
+			postfix = "AGL";
+		}
+		double localAltitudeFeet = localAltitudeMeters / 0.3048f;
+		localLatitudeLabel.setText(""+local.gps.getLatitude());
+		localLongitudeLabel.setText(""+local.gps.getLongitude());
+		localAltitudeLabel.setText(ALTITUDE_FORMAT.format(localAltitudeMeters) + " m (" + ALTITUDE_FORMAT.format(localAltitudeFeet) + " ft) " + postfix);
+		
+		double remoteAltitudeMeters = remote.gps.getAltitude();
+		if (Double.isNaN(remoteAltitudeZero)) {
+			postfix = "MSL";
+		} else {
+			remoteAltitudeMeters -= remoteAltitudeZero;
+			postfix = "AGL";
+		}
+		double remoteAltitudeFeet = remoteAltitudeMeters / 0.3048f;
+		remoteLatitudeLabel.setText(""+remote.gps.getLatitude());
+		remoteLongitudeLabel.setText(""+remote.gps.getLongitude());
+		remoteAltitudeLabel.setText(ALTITUDE_FORMAT.format(remoteAltitudeMeters) + " m (" + ALTITUDE_FORMAT.format(remoteAltitudeFeet) + " ft) " + postfix);
 	}
 	
 	private void updatePower(Sensors sensors) {
@@ -499,33 +552,6 @@ public class MainController {
 			helium.setValue(sensors.pressures.getHelium());
 		}
 	}
-	
-	private void updateMap() {
-		if (System.currentTimeMillis() - lastGpsUpdateMillis > GPS_UPATE_INTERVAL_MILLIS) {
-			lastGpsUpdateMillis = System.currentTimeMillis();
-			
-			if (marker != null) {
-				map.removeMarker(marker);
-				marker = null;
-			}
-			
-			if (remote.gps.getLatitude() != 0 && remote.gps.getLongitude() != 0) {
-				MarkerOptions options = new MarkerOptions();
-				options.title("Altitude: "+remote.gps.getAltitude() + " m");
-				options.position(new LatLong(remote.gps.getLatitude(), remote.gps.getLongitude()));
-				marker = new Marker(options);
-				map.addMarker(marker);
-			}
-			
-			Toggle selected = sensorsGroup.getSelectedToggle();
-			if (localButton.equals(selected)) {
-				if (local.gps.getLatitude() != 0 && local.gps.getLongitude() != 0) {
-					LatLong position = new LatLong(local.gps.getLatitude(), local.gps.getLongitude());
-					map.setCenter(position);
-				}
-			}
-		}
-	}
 
 	@FXML
 	private void onConnect(ActionEvent event) {
@@ -581,6 +607,126 @@ public class MainController {
 		}
 		
 		event.consume();
+	}
+	
+	@FXML
+	private void onCopyLocalLatitude(ActionEvent event) {
+		Clipboard clipboard = Clipboard.getSystemClipboard();
+		ClipboardContent content = new ClipboardContent();
+		content.putString(localLatitudeLabel.getText());
+		clipboard.setContent(content);
+	}
+	
+	@FXML
+	private void onCopyLocalLongitude(ActionEvent event) {
+		Clipboard clipboard = Clipboard.getSystemClipboard();
+		ClipboardContent content = new ClipboardContent();
+		content.putString(localLongitudeLabel.getText());
+		clipboard.setContent(content);
+	}
+	
+	@FXML
+	private void onCenterLocal(ActionEvent event) {
+		if (map == null) return;
+		
+		try {
+			double latitude = Double.valueOf(localLatitudeLabel.getText());
+			double longitude = Double.valueOf(localLongitudeLabel.getText());
+			
+			LatLong position = new LatLong(latitude, longitude);
+			map.setCenter(position);
+		} catch (NumberFormatException e) {
+			System.err.println(e);
+		}
+	}
+	
+	@FXML
+	private void onAddMarkerLocal(ActionEvent event) {
+		if (map == null) return;
+		
+		try {
+			double latitude = Double.valueOf(localLatitudeLabel.getText());
+			double longitude = Double.valueOf(localLongitudeLabel.getText());
+			
+			MarkerOptions options = new MarkerOptions();
+			options.position(new LatLong(latitude, longitude));
+			Marker marker = new Marker(options);
+			map.addMarker(marker);
+		} catch (NumberFormatException e) {
+			System.err.println(e);
+		}
+	}
+	
+	@FXML
+	private void onZeroLocalAltitude(ActionEvent event) {
+		if (ZERO_TEXT.equals(zeroLocalAltitudeButton.getText())) {
+			zeroLocalAltitudeButton.setText(UNZERO_TEXT);
+			localAltitudeZero = local.gps.getAltitude();
+		} else { // UNZERO_TEXT
+			zeroLocalAltitudeButton.setText(ZERO_TEXT);
+			localAltitudeZero = Double.NaN;
+		}
+		updateGPS();
+	}
+	
+	@FXML
+	private void onCopyRemoteLatitude(ActionEvent event) {
+		Clipboard clipboard = Clipboard.getSystemClipboard();
+		ClipboardContent content = new ClipboardContent();
+		content.putString(remoteLatitudeLabel.getText());
+		clipboard.setContent(content);
+	}
+	
+	@FXML
+	private void onCopyRemoteLongitude(ActionEvent event) {
+		Clipboard clipboard = Clipboard.getSystemClipboard();
+		ClipboardContent content = new ClipboardContent();
+		content.putString(remoteLongitudeLabel.getText());
+		clipboard.setContent(content);
+	}
+	
+	@FXML
+	private void onCenterRemote(ActionEvent event) {
+		if (map == null) return;
+		
+		try {
+			double latitude = Double.valueOf(remoteLatitudeLabel.getText());
+			double longitude = Double.valueOf(remoteLongitudeLabel.getText());
+			
+			LatLong position = new LatLong(latitude, longitude);
+			map.setCenter(position);
+		} catch (NumberFormatException e) {
+			System.err.println(e);
+		}
+	}
+	
+	@FXML
+	private void onAddMarkerRemote(ActionEvent event) {
+		if (map == null) return;
+		
+		try {
+			double latitude = Double.valueOf(remoteLatitudeLabel.getText());
+			double longitude = Double.valueOf(remoteLongitudeLabel.getText());
+			
+			MarkerOptions options = new MarkerOptions();
+			options.position(new LatLong(latitude, longitude));
+			Marker marker = new Marker(options);
+			map.addMarker(marker);
+		} catch (NumberFormatException e) {
+			System.err.println(e);
+		}
+	}
+	
+	@FXML
+	private void onZeroRemoteAltitude(ActionEvent event) {
+		if (ZERO_TEXT.equals(zeroRemoteAltitudeButton.getText())) {
+			zeroRemoteAltitudeButton.setText(UNZERO_TEXT);
+			remoteAltitudeZero = remote.gps.getAltitude();
+		} else { // UNZERO_TEXT
+			zeroRemoteAltitudeButton.setText(ZERO_TEXT);
+			remoteAltitudeZero = Double.NaN;
+		}
+		updateGPS();
 	}
 
 	/**

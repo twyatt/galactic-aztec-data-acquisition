@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
+<?import javafx.scene.text.*?>
 <?import javafx.geometry.*?>
 <?import javafx.scene.control.*?>
 <?import java.lang.*?>
@@ -61,6 +62,83 @@
                     <center>
                       <GoogleMapView fx:id="mapView" prefHeight="400" prefWidth="400" />
                     </center>
+                     <right>
+                        <VBox alignment="TOP_CENTER" prefWidth="300.0" spacing="10.0" BorderPane.alignment="CENTER">
+                           <children>
+                              <Label text="Local">
+                                 <font>
+                                    <Font name="System Bold" size="13.0" />
+                                 </font>
+                              </Label>
+                              <GridPane>
+                                <columnConstraints>
+                                  <ColumnConstraints halignment="RIGHT" hgrow="NEVER" minWidth="10.0" />
+                                  <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                    <ColumnConstraints hgrow="NEVER" minWidth="10.0" />
+                                </columnConstraints>
+                                <rowConstraints>
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                  <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                </rowConstraints>
+                                 <children>
+                                    <Label text="Latitude" />
+                                    <Label text="Longitude" GridPane.rowIndex="1" />
+                                    <Label fx:id="localLatitudeLabel" text="?" GridPane.columnIndex="1" />
+                                    <Label fx:id="localLongitudeLabel" text="?" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    <Label text="Altitude" GridPane.rowIndex="2" />
+                                    <Label fx:id="localAltitudeLabel" text="?" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                    <Button mnemonicParsing="false" onAction="#onCopyLocalLatitude" text="Copy" GridPane.columnIndex="2" />
+                                    <Button mnemonicParsing="false" onAction="#onCopyLocalLongitude" text="Copy" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                                    <Button fx:id="zeroLocalAltitudeButton" mnemonicParsing="false" onAction="#onZeroLocalAltitude" text="Zero" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                                 </children>
+                              </GridPane>
+                              <Button mnemonicParsing="false" onAction="#onCenterLocal" text="Center" />
+                              <Button mnemonicParsing="false" onAction="#onAddMarkerLocal" text="Add Marker" />
+                              <Separator prefWidth="200.0">
+                                 <padding>
+                                    <Insets bottom="10.0" top="10.0" />
+                                 </padding>
+                              </Separator>
+                              <Label text="Remote">
+                                 <font>
+                                    <Font name="System Bold" size="13.0" />
+                                 </font>
+                              </Label>
+                              <GridPane layoutX="20.0" layoutY="46.0">
+                                 <children>
+                                    <Label text="Latitude" />
+                                    <Label text="Longitude" GridPane.rowIndex="1" />
+                                    <Label fx:id="remoteLatitudeLabel" text="?" GridPane.columnIndex="1" />
+                                    <Label fx:id="remoteLongitudeLabel" text="?" GridPane.columnIndex="1" GridPane.rowIndex="1" />
+                                    <Label text="Altitude" GridPane.rowIndex="2" />
+                                    <Label fx:id="remoteAltitudeLabel" text="?" GridPane.columnIndex="1" GridPane.rowIndex="2" />
+                                    <Button mnemonicParsing="false" onAction="#onCopyRemoteLatitude" text="Copy" GridPane.columnIndex="2" />
+                                    <Button mnemonicParsing="false" onAction="#onCopyRemoteLongitude" text="Copy" GridPane.columnIndex="2" GridPane.rowIndex="1" />
+                                    <Button fx:id="zeroRemoteAltitudeButton" mnemonicParsing="false" onAction="#onZeroRemoteAltitude" text="Zero" GridPane.columnIndex="2" GridPane.rowIndex="2" />
+                                 </children>
+                                 <columnConstraints>
+                                    <ColumnConstraints halignment="RIGHT" hgrow="NEVER" minWidth="10.0" />
+                                    <ColumnConstraints halignment="CENTER" hgrow="SOMETIMES" minWidth="10.0" prefWidth="100.0" />
+                                    <ColumnConstraints hgrow="NEVER" minWidth="10.0" />
+                                 </columnConstraints>
+                                 <rowConstraints>
+                                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                    <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
+                                 </rowConstraints>
+                              </GridPane>
+                              <Button layoutX="131.0" layoutY="146.0" mnemonicParsing="false" onAction="#onCenterRemote" text="Center" />
+                              <Button layoutX="116.0" layoutY="182.0" mnemonicParsing="false" onAction="#onAddMarkerRemote" text="Add Marker" />
+                           </children>
+                           <padding>
+                              <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                           </padding>
+                           <BorderPane.margin>
+                              <Insets />
+                           </BorderPane.margin>
+                        </VBox>
+                     </right>
                   </BorderPane>
                </content>
           </Tab>
