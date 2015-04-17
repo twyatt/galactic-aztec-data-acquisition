@@ -26,6 +26,7 @@ import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.ClipboardContent;
+import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.paint.Color;
 
@@ -86,6 +87,7 @@ public class MainController {
 	@FXML private Label gpsSatellitesLabel;
 	@FXML private Label powerLabel;
 	@FXML private FlowPane gaugePane;
+	@FXML private BorderPane gpsBorderPane;
 	
 	@FXML private Label localLatitudeLabel;
 	@FXML private Label localLongitudeLabel;
@@ -96,8 +98,6 @@ public class MainController {
 	@FXML private Label remoteAltitudeLabel;
 	@FXML private Button zeroRemoteAltitudeButton;
 	
-	@FXML
-    private GoogleMapView mapView;
 	private GoogleMap map;
 	
 	private Gauge lox;
@@ -187,23 +187,6 @@ public class MainController {
         });
 		
 		createSensors();
-		
-		mapView.addMapInializedListener(new MapComponentInitializedListener() {
-			@Override
-			public void mapInitialized() {
-		        MapOptions mapOptions = new MapOptions();
-		        mapOptions.center(new LatLong(35.347218, -117.808392))
-		                .mapType(MapTypeIdEnum.SATELLITE)
-		                .overviewMapControl(false)
-		                .panControl(false)
-		                .rotateControl(false)
-		                .scaleControl(false)
-		                .streetViewControl(false)
-		                .zoomControl(true)
-		                .zoom(16);
-		        map = mapView.createMap(mapOptions);
-			}
-		});
 	}
 
 	private void createSensors() {
@@ -607,6 +590,39 @@ public class MainController {
 		}
 		
 		event.consume();
+	}
+	
+	@FXML
+	private void onLoadMap(ActionEvent event) {
+		final double latitude = local.gps.getLatitude();
+		final double longitude = local.gps.getLongitude();
+		
+		final GoogleMapView mapView = new GoogleMapView();
+		mapView.addMapInializedListener(new MapComponentInitializedListener() {
+			@Override
+			public void mapInitialized() {
+				LatLong center;
+				if (latitude != 0 && longitude != 0) {
+					center = new LatLong(latitude, longitude);
+				} else {
+					// Friends of Amateur Rocketry
+					center = new LatLong(35.347218, -117.808392);
+				}
+				
+		        MapOptions mapOptions = new MapOptions();
+		        mapOptions.center(center)
+		                .mapType(MapTypeIdEnum.SATELLITE)
+		                .overviewMapControl(false)
+		                .panControl(false)
+		                .rotateControl(false)
+		                .scaleControl(false)
+		                .streetViewControl(false)
+		                .zoomControl(true)
+		                .zoom(16);
+		        map = mapView.createMap(mapOptions);
+			}
+		});
+		gpsBorderPane.setCenter(mapView);
 	}
 	
 	@FXML

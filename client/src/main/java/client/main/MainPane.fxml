@@ -58,10 +58,7 @@
           </Tab>
           <Tab text="GPS">
                <content>
-                  <BorderPane prefHeight="200.0" prefWidth="200.0">
-                    <center>
-                      <GoogleMapView fx:id="mapView" prefHeight="400" prefWidth="400" />
-                    </center>
+                  <BorderPane fx:id="gpsBorderPane" prefHeight="200.0" prefWidth="200.0">
                      <right>
                         <VBox alignment="TOP_CENTER" prefWidth="300.0" spacing="10.0" BorderPane.alignment="CENTER">
                            <children>
@@ -139,6 +136,9 @@
                            </BorderPane.margin>
                         </VBox>
                      </right>
+                     <center>
+                        <Button mnemonicParsing="false" onAction="#onLoadMap" text="Load Map" BorderPane.alignment="CENTER" />
+                     </center>
                   </BorderPane>
                </content>
           </Tab>
