@@ -38,16 +38,35 @@ public class MockADS1115 extends ADS1115 {
 		return this;
 	}
 	
-	@Override
-	public float readMillivolts() throws IOException {
-		try {
-			Thread.sleep(10L);
-		} catch (InterruptedException e) {
-			System.err.println(e);
-		}
+	public float readMillivoltsMock() throws IOException, InterruptedException {
+		Thread.sleep(1L);
+	
 		float s = MathUtils.sin(x[channel]); // -1 to 1
 		float sp = (s / 2f) + 0.5f; // 0 to 1
 		return sp * 3300;
 	}
 	
+	@Override
+	public void loop() throws IOException, InterruptedException {
+		for (int channel : sequence) {
+			long start = System.nanoTime();
+			setSingleEnded(channel).begin();
+			
+			// wait for conversion
+			while (isPerformingConversion()) {
+				if (System.nanoTime() - start > timeout) {
+					if (listener != null) {
+						listener.onConversionTimeout();
+					}
+					break;
+				}
+			}
+			
+			float value = readMillivoltsMock();
+			
+			if (listener != null) {
+				listener.onValue(Channel.valueOf(channel), value);
+			}
+		}
+	}
 }

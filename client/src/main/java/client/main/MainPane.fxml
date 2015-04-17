@@ -34,13 +34,16 @@
             <Label fx:id="latencyLabel" text="?" />
             <Separator orientation="VERTICAL" />
             <Label text="Signal" />
-            <Label fx:id="signalLabel" text="0" />
+            <Label fx:id="signalLabel" text="?" />
             <Label text="dBm" />
             <Separator orientation="VERTICAL" />
             <Label text="GPS" />
-            <Label fx:id="gpsFixLabel" text="No Fix" />
-            <Label fx:id="gpsSatellitesLabel" text="0" />
+            <Label fx:id="gpsFixLabel" text="?" />
+            <Label fx:id="gpsSatellitesLabel" text="?" />
             <Label text="Satellites" />
+            <Separator orientation="VERTICAL" />
+            <Label text="Power" />
+            <Label fx:id="powerLabel" text="?" />
          </items>
       </ToolBar>
    </top>

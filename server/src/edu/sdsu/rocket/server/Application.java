@@ -377,6 +377,17 @@ public class Application {
 	}
 	
 	private void setupGPS() throws FileNotFoundException {
+		if (settings.devices.gps.local != null) {
+			local.gps.setLatitude(settings.devices.gps.local.latitude);
+			local.gps.setLongitude(settings.devices.gps.local.longitude);
+			local.gps.setAltitude(settings.devices.gps.local.altitude);
+		}
+		if (settings.devices.gps.remote != null) {
+			remote.gps.setLatitude(settings.devices.gps.remote.latitude);
+			remote.gps.setLongitude(settings.devices.gps.remote.longitude);
+			remote.gps.setAltitude(settings.devices.gps.remote.altitude);
+		}
+		
 		if (!settings.devices.gps.enabled) return;
 		System.out.println("Setup GPS [Adafruit Ultimate GPS].");
 		
@@ -419,6 +430,9 @@ public class Application {
 				double latitude  = event.getPosition().getLatitude();
 				double longitude = event.getPosition().getLongitude();
 				double altitude  = event.getPosition().getAltitude();
+				if (settings.debug) {
+					System.out.println("GPS provider update: latitude=" + latitude + ", longitude=" + longitude + ", altitude=" + altitude);
+				}
 				local.gps.set(latitude, longitude, altitude);
 			}
 		});
@@ -429,6 +443,9 @@ public class Application {
 			public void providerUpdate(SatelliteInfoEvent event) {
 				int fixStatus  = event.getGpsFixStatus().toInt();
 				int satellites = event.getSatelliteInfo().size();
+				if (settings.debug) {
+					System.out.println("GPS provider update: fix=" + fixStatus + ", satellites=" + satellites);
+				}
 				local.gps.setFixStatus(fixStatus);
 				local.gps.setSatellites(satellites);
 			}
@@ -470,7 +487,7 @@ public class Application {
 	
 	protected void setupRadio() throws IOException, IllegalStateException, InterruptedException {
 		if (!settings.devices.xtend900.enabled) return;
-		System.out.println("Setup Radio [XTend900].");
+		System.out.println("Setup Radio [XTend 900].");
 		
 		XTend900Config config = settings.devices.xtend900.config;
 		System.out.println("Config: " + config);
@@ -503,12 +520,16 @@ public class Application {
 
 			@Override
 			public void onRFModuleStatus(RFModuleStatus rfModuleStatus) {
-				System.out.println("Radio status: Hardware reset=" + rfModuleStatus.isHardwareReset() + ", Watchdog timer reset=" + rfModuleStatus.isWatchdogTimerReset());
+				if (settings.debug) {
+					System.out.println("Radio status: Hardware reset=" + rfModuleStatus.isHardwareReset() + ", Watchdog timer reset=" + rfModuleStatus.isWatchdogTimerReset());
+				}
 			}
 
 			@Override
 			public void onTXStatus(TXStatus txStatus) {
-				System.out.println("Radio TX status: Frame ID=" + txStatus.getFrameID() + ", Success=" + (txStatus.isSuccess() ? "yes" : "no") + ", No ACK Received=" + (txStatus.isNoACKReceived() ? "yes" : "no"));
+				if (settings.debug) {
+					System.out.println("Radio TX status: Frame ID=" + txStatus.getFrameID() + ", Success=" + (txStatus.isSuccess() ? "yes" : "no") + ", No ACK Received=" + (txStatus.isNoACKReceived() ? "yes" : "no"));
+				}
 			}
 		});
 		
@@ -671,7 +692,7 @@ public class Application {
 				} else {
 					transmitter.pause();
 				}
-				System.out.println("Radio transmission is now " + (transmitter.isPaused() ? "OFF" : "ON") + ".");
+				System.out.println("Radio sensor transmission is now " + (transmitter.isPaused() ? "OFF" : "ON") + ".");
 			}
 			break;
 		case 'q':

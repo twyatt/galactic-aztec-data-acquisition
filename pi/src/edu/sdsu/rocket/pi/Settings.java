@@ -76,6 +76,14 @@ public class Settings {
 		public boolean enabled;
 		public String logFile;
 		public String device;
+		public GPSPosition local;
+		public GPSPosition remote;
+	}
+	
+	public static class GPSPosition {
+		public double latitude;
+		public double longitude;
+		public double altitude;
 	}
 	
 }

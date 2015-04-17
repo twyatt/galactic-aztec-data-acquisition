@@ -3,10 +3,17 @@ package edu.sdsu.rocket.pi.devices;
 import java.io.IOException;
 
 import com.badlogic.gdx.math.MathUtils;
+import com.badlogic.gdx.math.Vector3;
 
 public class MockADXL345 extends ADXL345 {
 
-	private float x;
+	static final float TIME_MULTIPLIER = 0.001f;
+	static final float VALUE_MULTIPLIER = 2f;
+	
+	long t = System.currentTimeMillis();
+	
+	Vector3 i = new Vector3(0, MathUtils.PI / 2f, MathUtils.PI);
+	Vector3 v = new Vector3();
 
 	@Override
 	public void setup() throws IOException {}
@@ -32,12 +39,19 @@ public class MockADXL345 extends ADXL345 {
 	
 	@Override
 	public void loop() throws IOException {
-		x += 0.01f;
-		float c = MathUtils.cos(x); // -1 to 1
-		float s = MathUtils.sin(x); // -1 to 1
+		long dt = System.currentTimeMillis() - t;
+		t = System.currentTimeMillis();
+		i.x += (float) dt * TIME_MULTIPLIER;
+		i.y += (float) dt * TIME_MULTIPLIER;
+		i.z += (float) dt * TIME_MULTIPLIER;
+		
+		v.set(MathUtils.cos(i.x), MathUtils.cos(i.y), MathUtils.cos(i.z)); // -1 to 1
+		v.x *= 9.8f * VALUE_MULTIPLIER;
+		v.y *= 9.8f * VALUE_MULTIPLIER;
+		v.z *= 9.8f * VALUE_MULTIPLIER;
 		
 		if (listener != null) {
-			listener.onValues((short) (s * 9.8 * 100), (short) (c * 9.8 * 100), (short) (s * 9.8 * 100));
+			listener.onValues((short) v.x, (short) v.y, (short) v.z);
 		}
 	}
 	

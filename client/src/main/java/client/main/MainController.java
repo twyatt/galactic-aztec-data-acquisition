@@ -2,6 +2,8 @@ package client.main;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.text.DecimalFormat;
+import java.text.Format;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -83,6 +85,7 @@ public class MainController {
 	@FXML private Label signalLabel;
 	@FXML private Label gpsFixLabel;
 	@FXML private Label gpsSatellitesLabel;
+	@FXML private Label powerLabel;
 	@FXML private FlowPane gaugePane;
 	
 	@FXML
@@ -121,6 +124,7 @@ public class MainController {
 	private Marker marker;
 	private long lastGpsUpdateMillis = System.currentTimeMillis();
 
+	private static final Format SIGNAL_STRENGTH_FORMAT = new DecimalFormat("#.##");
 	private static final Vector3 tmpVec = new Vector3();
 
 	/**
@@ -145,15 +149,8 @@ public class MainController {
 				Platform.runLater(new Runnable() {
 					@Override
 					public void run() {
-						Sensors sensors;
-						Toggle selected = sensorsGroup.getSelectedToggle();
-						if (remoteButton.equals(selected)) {
-							sensors = remote;
-						} else {
-							sensors = local;
-						}
-						updateSensors(sensors);
-						updateGPS();
+						updateSensors();
+						updateMap();
 					}
 				});
 			}
@@ -344,6 +341,7 @@ public class MainController {
 				lox.setValue(0);
 				kerosene.setValue(0);
 				helium.setValue(0);
+				
 				accelerometerXData.getData().clear();
 				accelerometerYData.getData().clear();
 				accelerometerZData.getData().clear();
@@ -354,25 +352,121 @@ public class MainController {
 				magnetometerYData.getData().clear();
 				magnetometerZData.getData().clear();
 				barometerPressureData.getData().clear();
+				
+				signalLabel.setText("?");
+				gpsFixLabel.setText("?");
+				gpsSatellitesLabel.setText("?");
+				powerLabel.setText("?");
 			}
 		});
 	}
 	
-	public void updateSensors(Sensors sensors) {
-		if (DEBUG_SENSORS) {
-			motor.setValue(sensors.analog.getA0());
-			lox.setValue(sensors.analog.getA1());
-			kerosene.setValue(sensors.analog.getA2());
-			helium.setValue(sensors.analog.getA3());
+	public void updateSensors() {
+		Sensors sensors;
+		Toggle selected = sensorsGroup.getSelectedToggle();
+		if (remoteButton.equals(selected)) {
+			sensors = remote;
 		} else {
-			motor.setValue(sensors.pressures.getMotor());
-			lox.setValue(sensors.pressures.getLOX());
-			kerosene.setValue(sensors.pressures.getKerosene());
-			helium.setValue(sensors.pressures.getHelium());
+			sensors = local;
 		}
 		
-		chartIndex++;
+		updateSignalStrength();
+		updateGPS(sensors);
+		updatePower(sensors);
 		
+		updatePressures(sensors);
+		
+		chartIndex++;
+		updateAccelerometer(sensors);
+		updateGyroscope(sensors);
+		updateMagnetometer(sensors);
+		updateBarometer(sensors);
+	}
+
+	private void updateSignalStrength() {
+		if (local.radio.getSignalStrength() == 0) {
+			signalLabel.setText("?");
+		} else {
+			try {
+				signalLabel.setText("-" + SIGNAL_STRENGTH_FORMAT.format(local.radio.getSignalStrength()));
+			} catch (IllegalArgumentException e) {
+				System.err.println("Failed to format signal strength value for display: " + e);
+			}
+		}
+	}
+
+	private void updateGPS(Sensors sensors) {
+		switch (sensors.gps.getFixStatus()) {
+		case 1: // no fix
+			gpsFixLabel.setText("No Fix");
+			break;
+		case 2: // 2D
+			gpsFixLabel.setText("2D");
+			break;
+		case 3: // 3D
+			gpsFixLabel.setText("3D");
+			break;
+		}
+		gpsSatellitesLabel.setText(String.valueOf(sensors.gps.getSatellites()));
+	}
+	
+	private void updatePower(Sensors sensors) {
+		if (sensors.system.getIsPowerGood()) {
+			powerLabel.setText("GOOD");
+		} else {
+			powerLabel.setText("BAD");
+		}
+	}
+
+	private void updateBarometer(Sensors sensors) {
+		float pressure = sensors.barometer.getPressure();
+		barometerX.setLowerBound(chartIndex - BAROMETER_DATA_POINTS + 1);
+		barometerX.setUpperBound(chartIndex);
+		while (barometerPressureData.getData().size() >= BAROMETER_DATA_POINTS) {
+			barometerPressureData.getData().remove(0);
+		}
+		barometerPressureData.getData().add(new XYChart.Data<Number, Number>(chartIndex, pressure));
+	}
+
+	private void updateMagnetometer(Sensors sensors) {
+		Vector3 magnetometer = tmpVec;
+		sensors.magnetometer.get(magnetometer);
+		magnetometerX.setLowerBound(chartIndex - MAGNETOMETER_DATA_POINTS + 1);
+		magnetometerX.setUpperBound(chartIndex);
+		while (magnetometerXData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
+			magnetometerXData.getData().remove(0);
+		}
+		while (magnetometerYData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
+			magnetometerYData.getData().remove(0);
+		}
+		while (magnetometerZData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
+			magnetometerZData.getData().remove(0);
+		}
+		magnetometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.x));
+		magnetometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.y));
+		magnetometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.z));
+	}
+
+	private void updateGyroscope(Sensors sensors) {
+		Vector3 gyroscope = tmpVec;
+		sensors.gyroscope.get(gyroscope);
+		gyroscopeX.setLowerBound(chartIndex - GYROSCOPE_DATA_POINTS + 1);
+		gyroscopeX.setUpperBound(chartIndex);
+		while (gyroscopeXData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+			gyroscopeXData.getData().remove(0);
+		}
+		while (gyroscopeYData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+			gyroscopeYData.getData().remove(0);
+		}
+		while (gyroscopeZData.getData().size() >= GYROSCOPE_DATA_POINTS) {
+			gyroscopeZData.getData().remove(0);
+		}
+		gyroscopeXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.x));
+		gyroscopeYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.y));
+		gyroscopeZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.z));
+	}
+
+	private void updateAccelerometer(Sensors sensors) {
 		Vector3 accelerometer = tmpVec;
 		sensors.accelerometer.get(accelerometer);
 		accelerometer.scl(9.8f);
@@ -390,66 +484,23 @@ public class MainController {
 		accelerometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.x));
 		accelerometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.y));
 		accelerometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, accelerometer.z));
-		
-		Vector3 gyroscope = tmpVec;
-		sensors.gyroscope.get(gyroscope);
-		gyroscopeX.setLowerBound(chartIndex - GYROSCOPE_DATA_POINTS + 1);
-		gyroscopeX.setUpperBound(chartIndex);
-		while (gyroscopeXData.getData().size() >= GYROSCOPE_DATA_POINTS) {
-			gyroscopeXData.getData().remove(0);
+	}
+
+	private void updatePressures(Sensors sensors) {
+		if (DEBUG_SENSORS) {
+			motor.setValue(sensors.analog.getA0());
+			lox.setValue(sensors.analog.getA1());
+			kerosene.setValue(sensors.analog.getA2());
+			helium.setValue(sensors.analog.getA3());
+		} else {
+			motor.setValue(sensors.pressures.getMotor());
+			lox.setValue(sensors.pressures.getLOX());
+			kerosene.setValue(sensors.pressures.getKerosene());
+			helium.setValue(sensors.pressures.getHelium());
 		}
-		while (gyroscopeYData.getData().size() >= GYROSCOPE_DATA_POINTS) {
-			gyroscopeYData.getData().remove(0);
-		}
-		while (gyroscopeZData.getData().size() >= GYROSCOPE_DATA_POINTS) {
-			gyroscopeZData.getData().remove(0);
-		}
-		gyroscopeXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.x));
-		gyroscopeYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.y));
-		gyroscopeZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, gyroscope.z));
-		
-		Vector3 magnetometer = tmpVec;
-		sensors.magnetometer.get(magnetometer);
-		magnetometerX.setLowerBound(chartIndex - MAGNETOMETER_DATA_POINTS + 1);
-		magnetometerX.setUpperBound(chartIndex);
-		while (magnetometerXData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
-			magnetometerXData.getData().remove(0);
-		}
-		while (magnetometerYData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
-			magnetometerYData.getData().remove(0);
-		}
-		while (magnetometerZData.getData().size() >= MAGNETOMETER_DATA_POINTS) {
-			magnetometerZData.getData().remove(0);
-		}
-		magnetometerXData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.x));
-		magnetometerYData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.y));
-		magnetometerZData.getData().add(new XYChart.Data<Number, Number>(chartIndex, magnetometer.z));
-		
-		float pressure = sensors.barometer.getPressure();
-		barometerX.setLowerBound(chartIndex - BAROMETER_DATA_POINTS + 1);
-		barometerX.setUpperBound(chartIndex);
-		while (barometerPressureData.getData().size() >= BAROMETER_DATA_POINTS) {
-			barometerPressureData.getData().remove(0);
-		}
-		barometerPressureData.getData().add(new XYChart.Data<Number, Number>(chartIndex, pressure));
-		
-		signalLabel.setText("-" + sensors.radio.getSignalStrength());
-		
-		switch (sensors.gps.getFixStatus()) {
-		case 1: // no fix
-			gpsFixLabel.setText("No Fix");
-			break;
-		case 2: // 2D
-			gpsFixLabel.setText("2D");
-			break;
-		case 3: // 3D
-			gpsFixLabel.setText("3D");
-			break;
-		}
-		gpsSatellitesLabel.setText(String.valueOf(sensors.gps.getSatellites()));
 	}
 	
-	private void updateGPS() {
+	private void updateMap() {
 		if (System.currentTimeMillis() - lastGpsUpdateMillis > GPS_UPATE_INTERVAL_MILLIS) {
 			lastGpsUpdateMillis = System.currentTimeMillis();
 			
@@ -466,10 +517,10 @@ public class MainController {
 				map.addMarker(marker);
 			}
 			
-//			if (local.gps.getLatitude() != 0 && local.gps.getLongitude() != 0) {
-//				LatLong position = new LatLong(local.gps.getLatitude(), local.gps.getLongitude());
-//				map.setCenter(position);
-//			}
+			if (local.gps.getLatitude() != 0 && local.gps.getLongitude() != 0) {
+				LatLong position = new LatLong(local.gps.getLatitude(), local.gps.getLongitude());
+				map.setCenter(position);
+			}
 		}
 	}
 

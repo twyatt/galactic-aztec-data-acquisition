@@ -28,18 +28,18 @@ public class ADS1115 implements Device {
 
 		public void onConversionTimeout();
 	}
-	private AnalogListener listener;
+	protected AnalogListener listener;
 	public ADS1115 setListener(AnalogListener listener) {
 		this.listener = listener;
 		return this;
 	}
 	
-	private long timeout;
+	protected long timeout;
 	public void setTimeout(long timeout) {
 		this.timeout = timeout;
 	}
 	
-	private int[] sequence = new int[] { 0, 1, 2, 3 };
+	protected int[] sequence = new int[] { 0, 1, 2, 3 };
 	public void setSequence(int[] sequence) {
 		if (sequence == null || sequence.length == 0) {
 			sequence = new int[] { 0, 1, 2, 3 };
