@@ -124,7 +124,7 @@ public class MainController {
 	private Marker marker;
 	private long lastGpsUpdateMillis = System.currentTimeMillis();
 
-	private static final Format SIGNAL_STRENGTH_FORMAT = new DecimalFormat("#.##");
+	private static final Format LATENCY_FORMAT = new DecimalFormat("#.#");
 	private static final Vector3 tmpVec = new Vector3();
 
 	/**
@@ -188,7 +188,7 @@ public class MainController {
 		                .scaleControl(false)
 		                .streetViewControl(false)
 		                .zoomControl(true)
-		                .zoom(17);
+		                .zoom(16);
 		        map = mapView.createMap(mapOptions);
 			}
 		});
@@ -320,7 +320,7 @@ public class MainController {
 	}
 	
 	protected void updateLatency(float latency) {
-		latencyLabel.setText("" + latency + " ms");
+		latencyLabel.setText(LATENCY_FORMAT.format(latency) + " ms");
 	}
 	
 	@FXML
@@ -328,7 +328,7 @@ public class MainController {
 		SensorClient.Mode mode;
 		Toggle selected = sensorsGroup.getSelectedToggle();
 		if (remoteButton.equals(selected)) {
-			mode = Mode.REMOTE;
+			mode = Mode.BOTH;
 		} else {
 			mode = Mode.LOCAL;
 		}
@@ -388,7 +388,7 @@ public class MainController {
 			signalLabel.setText("?");
 		} else {
 			try {
-				signalLabel.setText("-" + SIGNAL_STRENGTH_FORMAT.format(local.radio.getSignalStrength()));
+				signalLabel.setText("-" + local.radio.getSignalStrength());
 			} catch (IllegalArgumentException e) {
 				System.err.println("Failed to format signal strength value for display: " + e);
 			}
@@ -517,9 +517,12 @@ public class MainController {
 				map.addMarker(marker);
 			}
 			
-			if (local.gps.getLatitude() != 0 && local.gps.getLongitude() != 0) {
-				LatLong position = new LatLong(local.gps.getLatitude(), local.gps.getLongitude());
-				map.setCenter(position);
+			Toggle selected = sensorsGroup.getSelectedToggle();
+			if (localButton.equals(selected)) {
+				if (local.gps.getLatitude() != 0 && local.gps.getLongitude() != 0) {
+					LatLong position = new LatLong(local.gps.getLatitude(), local.gps.getLongitude());
+					map.setCenter(position);
+				}
 			}
 		}
 	}
