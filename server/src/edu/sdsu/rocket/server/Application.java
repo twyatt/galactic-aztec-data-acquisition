@@ -64,7 +64,10 @@ import edu.sdsu.rocket.pi.devices.MockITG3205;
 import edu.sdsu.rocket.pi.devices.MockMS5611;
 import edu.sdsu.rocket.pi.io.radio.APIFrameListener;
 import edu.sdsu.rocket.pi.io.radio.SensorsTransmitter;
+import edu.sdsu.rocket.pi.io.radio.Watchdog;
+import edu.sdsu.rocket.pi.io.radio.Watchdog.WatchdogListener;
 import edu.sdsu.rocket.pi.io.radio.XTend900;
+import edu.sdsu.rocket.pi.io.radio.XTend900.XTend900Listener;
 import edu.sdsu.rocket.pi.io.radio.XTend900Config;
 import edu.sdsu.rocket.pi.io.radio.api.RFModuleStatus;
 import edu.sdsu.rocket.pi.io.radio.api.RXPacket;
@@ -101,6 +104,7 @@ public class Application {
 	
 	private XTend900 radio;
 	private DeviceRunnable transmitter;
+	private Watchdog watchdog;
 	private Thread statusThread;
 	
 	private final Vector3 tmpVec = new Vector3();
@@ -112,6 +116,7 @@ public class Application {
 	public void setup() throws IOException {
 		loadSettings();
 		setupLogging();
+		setupWatchdog();
 		setupDevices();
 		setupStatusMonitor();
 		setupServer();
@@ -505,7 +510,25 @@ public class Application {
 		if (settings.devices.xtend900.logFile != null) {
 			radio.setLogOutputStream(log.getXTend900OutputStream());
 		}
-		radio.setAPIListener(new APIFrameListener() {
+		if (watchdog != null) {
+			radio.addListener(new XTend900Listener() {
+				@Override
+				public void onRadioTurnedOff() {
+					System.out.println("Watchdog disabled.");
+					watchdog.disable();
+				}
+				@Override
+				public void onRadioTurnedOn() {
+					System.out.println("Watchdog enabled.");
+					watchdog.enable();
+				}
+				@Override
+				public void onDataReceived(byte[] data) {
+					// TODO Auto-generated method stub
+				}
+			});
+		}
+		radio.addAPIListener(new APIFrameListener() {
 			@Override
 			public void onRXPacket(RXPacket packet) {
 //				System.out.println("Radio RX packet: Source address=" + packet.getSourceAddres() + ", Signal strengh=-" + packet.getSignalStrength() + " dBm");
@@ -533,9 +556,34 @@ public class Application {
 			}
 		});
 		
-		if (settings.devices.xtend900.sendSensorData) {
+		if (settings.devices.xtend900.sendSensorData
+				|| (settings.devices.xtend900.watchdog != null && settings.devices.xtend900.watchdog.enabled)) {
 			boolean startPaused = true;
 			transmitter = manager.add(new SensorsTransmitter(radio, local), startPaused);
+		}
+	}
+
+	private void setupWatchdog() {
+		if (settings.devices.xtend900.watchdog == null || !settings.devices.xtend900.watchdog.enabled) {
+			return;
+		}
+		
+		System.out.println("Setup watchdog for XTend 900.");
+		watchdog = new Watchdog(settings.devices.xtend900.watchdog.timeout);
+		watchdog.setListener(new WatchdogListener() {
+			@Override
+			public void triggered() {
+				if (settings.debug) System.out.println("Watchdog triggered!");
+				if (transmitter != null && transmitter.isPaused()) {
+					transmitter.resume();
+				}
+				watchdog.stop();
+			}
+		});
+		watchdog.start();
+		
+		if (radio != null) {
+			radio.addAPIListener(watchdog);
 		}
 	}
 	
@@ -545,6 +593,9 @@ public class Application {
 			System.out.println();
 			System.out.println("?: help");
 			System.out.println("f: loop frequency");
+			if (watchdog != null) {
+				System.out.println("w: watchdog status");
+			}
 			System.out.println("s/S: system status (local/remote)");
 			System.out.println("a/A: accelerometer (local/remote)");
 			System.out.println("g/G: gyroscope (local/remote)");
@@ -559,6 +610,11 @@ public class Application {
 			}
 			System.out.println("q: quit");
 			System.out.println();
+			break;
+		case 'w':
+			if (watchdog != null) {
+				System.out.println("Watchdog: time until timeout=" + watchdog.getTimeoutTimeRemaining() + " s, countdown=" + watchdog.getCountdownTimeRemaining() + " s");
+			}
 			break;
 		case 's':
 			System.out.println("CPU: " + local.system.getTemperatureC() + " C, " + local.system.getTemperatureF() + " F, Power " + (local.system.getIsPowerGood() ? "GOOD" : "BAD"));
@@ -703,6 +759,11 @@ public class Application {
 
 	private void shutdown() {
 		System.out.println("Shutting down.");
+		
+		if (watchdog != null) {
+			System.out.println("Stopping watchdog.");
+			watchdog.stop();
+		}
 		
 		System.out.println("Stopping server.");
 		server.stop();

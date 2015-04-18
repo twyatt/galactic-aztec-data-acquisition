@@ -12,7 +12,7 @@
       <ToolBar prefHeight="40.0" prefWidth="200.0" BorderPane.alignment="CENTER">
          <items>
             <Label text="Host" />
-            <TextField fx:id="hostTextField" text="pi.local" />
+            <TextField fx:id="hostTextField" text="data1" />
             <Button fx:id="connectButton" mnemonicParsing="false" onAction="#onConnect" text="Connect" />
             <Separator orientation="VERTICAL" />
             <Label text="Sensors" />

@@ -1,6 +1,10 @@
 package edu.sdsu.rocket.pi.io.radio;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import edu.sdsu.rocket.core.helpers.ByteHelper;
 import edu.sdsu.rocket.pi.io.radio.api.APIFrame;
@@ -16,6 +20,8 @@ public class APIFrameHandler {
 	private static final byte RF_MODULE_STAUS_IDENTIFIER = (byte) 0x8A;
 	private static final byte TX_STATUS_IDENTIFIER       = (byte) 0x89;
 	
+	final CopyOnWriteArrayList<APIFrameListener> listeners = new CopyOnWriteArrayList<>();
+	
 	private static final int LENGTH_SIZE = 2;
 	private static final ByteBuffer LENGTH_BUFFER = ByteBuffer.allocate(LENGTH_SIZE);
 	private static final ByteBuffer FRAME_DATA_BUFFER = ByteBuffer.allocate(APIFrame.MAXIMUM_FRAME_DATA_LENGTH);
@@ -28,14 +34,14 @@ public class APIFrameHandler {
 	}
 	private Mode mode = Mode.START_DELIMITER;
 	
-	private APIFrameListener listener;
-
-	public APIFrameHandler(APIFrameListener listener) {
-		setListener(listener);
+	public synchronized void addListener(APIFrameListener ... listener) {
+		Collections.addAll(listeners, listener);
 	}
 	
-	public void setListener(APIFrameListener listener) {
-		this.listener = listener;
+	public synchronized void removeListener(APIFrameListener ... listener) {
+		for (APIFrameListener l : listener) {
+			listeners.remove(l);
+		}
 	}
 	
 	public void onData(byte[] data) {
@@ -101,9 +107,10 @@ public class APIFrameHandler {
 			System.err.println("Invalid frame data length: " + (data == null ? "null" : data.length));
 		}
 		
-		if (listener != null) {
-			byte identifier = data[0];
-			
+		Collection<APIFrameListener> listenersCopy = new ArrayList<APIFrameListener>(listeners);
+		
+		byte identifier = data[0];
+		for (APIFrameListener listener : listenersCopy) {
 			if (identifier == RX_PACKET_IDENTIFIER) {
 				listener.onRXPacket(new RXPacket(data));
 			} else if (identifier == RF_MODULE_STAUS_IDENTIFIER) {

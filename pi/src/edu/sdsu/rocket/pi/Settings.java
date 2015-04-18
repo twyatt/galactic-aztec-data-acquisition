@@ -41,6 +41,13 @@ public class Settings {
 		public boolean sendSensorData;
 		public String device;
 		public XTend900Config config;
+		public WatchdogSettings watchdog;
+	}
+	
+	public static class WatchdogSettings {
+		public boolean enabled;
+		public long timeout;
+		public long countdown;
 	}
 	
 	public static class ADXL345Settings {

@@ -3,6 +3,10 @@ package edu.sdsu.rocket.pi.io.radio;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.pi4j.io.gpio.GpioController;
 import com.pi4j.io.gpio.GpioFactory;
@@ -18,19 +22,19 @@ import edu.sdsu.rocket.pi.io.radio.api.TXRequest;
 
 public class XTend900 implements SerialDataEventListener {
 	
-	// only used when AP = 0 (default)
 	public interface XTend900Listener {
-		public void onDataReceived(byte[] data);
+		public void onRadioTurnedOff();
+		public void onRadioTurnedOn();
+		public void onDataReceived(byte[] data); // only used when AP = 0 (default)
 	}
-	private XTend900Listener listener;
+	final CopyOnWriteArrayList<XTend900Listener> listeners = new CopyOnWriteArrayList<>();
+	
+	// only used when AP = 1 or 2
+	private final APIFrameHandler apiFrameHandler = new APIFrameHandler();
 	
 	static final int BUFFER_SIZE = APIFrame.MAXIMUM_FRAME_LENGTH;
 	private static final ByteBuffer WRITE_BUFFER = ByteBuffer.allocate(BUFFER_SIZE);
 
-	// only used when AP = 1 or 2
-	private APIFrameListener apiFrameListener;
-	private APIFrameHandler apiFrameHandler;
-	
 	private OutputStream logOutputStream;
 	
 	private boolean isTXLedEnabled;
@@ -47,20 +51,29 @@ public class XTend900 implements SerialDataEventListener {
 		serial.addListener(this);
 	}
 	
-	public XTend900 setListener(XTend900Listener listener) {
-		this.listener = listener;
+	public synchronized XTend900 addListener(XTend900Listener ... listener) {
+		Collections.addAll(listeners, listener);
 		return this;
 	}
 	
-	public XTend900 setAPIListener(APIFrameListener listener) {
-		apiFrameListener = listener;
-		if (apiFrameHandler != null) {
-			apiFrameHandler.setListener(apiFrameListener);
+	public synchronized XTend900 removeListener(XTend900Listener ... listener) {
+		for (XTend900Listener l : listeners) {
+			listeners.remove(l);
 		}
 		return this;
 	}
 	
-	public XTend900 setLogOutputStream(OutputStream logOutputStream) {
+	public XTend900 addAPIListener(APIFrameListener ... listener) {
+		apiFrameHandler.addListener(listener);
+		return this;
+	}
+	
+	public XTend900 removeAPIListener(APIFrameListener ... listener) {
+		apiFrameHandler.removeListener(listener);
+		return this;
+	}
+	
+	public synchronized XTend900 setLogOutputStream(OutputStream logOutputStream) {
 		this.logOutputStream = logOutputStream;
 		return this;
 	}
@@ -117,16 +130,6 @@ public class XTend900 implements SerialDataEventListener {
 		serial.flush();
 		
 		this.config.set(config);
-		
-		switch (this.config.getAPIEnable()) {
-		case ENABLED_WITHOUT_ESCAPED_CHARACTERS:
-			apiFrameHandler = new APIFrameHandler(apiFrameListener);
-			break;
-		case ENABLED_WITH_ESCAPED_CHARACTERS:
-			throw new UnsupportedOperationException("API frame with escaped characters not implemented.");
-		default:
-			break;
-		}
 		
 		Thread.sleep(500L);
 		isCommandMode = false;
@@ -304,16 +307,15 @@ public class XTend900 implements SerialDataEventListener {
 			
 			switch (config.getAPIEnable()) {
 			case ENABLED_WITHOUT_ESCAPED_CHARACTERS:
-				if (apiFrameHandler != null) {
-					apiFrameHandler.onData(data);
-				}
+				apiFrameHandler.onData(data);
 				break;
 			case ENABLED_WITH_ESCAPED_CHARACTERS:
 				throw new UnsupportedOperationException("API frame with escaped characters not implemented.");
 			default: // DISABLED
-				if (listener != null) {
-					listener.onDataReceived(data);
-				}
+				Collection<XTend900Listener> listenersCopy = new ArrayList<XTend900Listener>(listeners);
+		        for (XTend900Listener listener : listenersCopy) {
+	                listener.onDataReceived(data);
+		        }
 				break;
 			}
 		} catch (IOException e) {

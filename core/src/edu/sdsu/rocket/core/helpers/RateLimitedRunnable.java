@@ -11,6 +11,8 @@ public abstract class RateLimitedRunnable implements Runnable {
 
 	private Object lock = new Object();
 	private boolean isPaused;
+
+	private boolean isRunning = true;
 	
 	public RateLimitedRunnable() {
 		this(0L, false);
@@ -29,6 +31,9 @@ public abstract class RateLimitedRunnable implements Runnable {
 		isPaused = startPaused;
 	}
 	
+	public void setRunning(boolean isRunning) {
+		this.isRunning = isRunning;
+	}
 
 	/**
 	 * Sets the running frequency.
@@ -102,7 +107,7 @@ public abstract class RateLimitedRunnable implements Runnable {
 	
 	@Override
 	public final void run() {
-		while (!Thread.currentThread().isInterrupted()) {
+		while (!Thread.currentThread().isInterrupted() && isRunning) {
 			try {
 				loop();
 				
