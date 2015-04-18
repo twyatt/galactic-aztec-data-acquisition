@@ -53,13 +53,15 @@ public class Settings {
 	public static class ADXL345Settings {
 		public boolean enabled;
 		public String logFile;
-		public long throttle;
+		public long sleep;
+//		public long throttle;
 	}
 	
 	public static class ITG3205Settings {
 		public boolean enabled;
 		public String logFile;
-		public long throttle;
+		public long sleep;
+//		public long throttle;
 	}
 	
 	public static class HMC5883LSettings {
@@ -70,7 +72,8 @@ public class Settings {
 	public static class MS5611Settings {
 		public boolean enabled;
 		public String logFile;
-		public long throttle;
+		public long sleep;
+//		public long throttle;
 	}
 	
 	public static class ADS1115Settings {

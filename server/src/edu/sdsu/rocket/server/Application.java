@@ -215,7 +215,8 @@ public class Application {
 		
 		manager
 			.add(adxl345)
-			.setThrottle(settings.devices.adxl345.throttle);
+			.setSleep(settings.devices.adxl345.sleep);
+//			.setThrottle(settings.devices.adxl345.throttle);
 	}
 
 	private void setupGyroscope() throws IOException, FileNotFoundException {
@@ -253,7 +254,8 @@ public class Application {
 		
 		manager
 			.add(itg3205)
-			.setThrottle(settings.devices.itg3205.throttle);
+			.setSleep(settings.devices.itg3205.sleep);
+//			.setThrottle(settings.devices.itg3205.throttle);
 	}
 	
 	private void setupMagnetometer() throws IOException, FileNotFoundException {
@@ -332,7 +334,8 @@ public class Application {
 		
 		manager
 			.add(ms5611)
-			.setThrottle(settings.devices.ms5611.throttle);
+			.setSleep(settings.devices.ms5611.sleep);
+//			.setThrottle(settings.devices.ms5611.throttle);
 	}
 
 	private void setupADC() throws IOException {
