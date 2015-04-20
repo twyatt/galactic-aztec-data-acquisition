@@ -116,7 +116,6 @@ public class Application {
 	public void setup() throws IOException {
 		loadSettings();
 		setupLogging();
-		setupWatchdog();
 		setupDevices();
 		setupStatusMonitor();
 		setupServer();
@@ -173,6 +172,7 @@ public class Application {
 		
 		try {
 			setupRadio();
+			setupWatchdog();
 		} catch (IllegalStateException e) {
 			throw new IOException(e);
 		} catch (InterruptedException e) {
@@ -572,6 +572,7 @@ public class Application {
 		}
 		
 		System.out.println("Setup watchdog for XTend 900.");
+		
 		watchdog = new Watchdog(settings.devices.xtend900.watchdog.timeout);
 		watchdog.setListener(new WatchdogListener() {
 			@Override
@@ -584,10 +585,7 @@ public class Application {
 			}
 		});
 		watchdog.start();
-		
-		if (radio != null) {
-			radio.addAPIListener(watchdog);
-		}
+		radio.addAPIListener(watchdog);
 	}
 	
 	public void loop() throws IOException {
@@ -598,6 +596,7 @@ public class Application {
 			System.out.println("f: loop frequency");
 			if (watchdog != null) {
 				System.out.println("w: watchdog status");
+				System.out.println("W: watchdog start");
 			}
 			System.out.println("s/S: system status (local/remote)");
 			System.out.println("a/A: accelerometer (local/remote)");
@@ -617,6 +616,12 @@ public class Application {
 		case 'w':
 			if (watchdog != null) {
 				System.out.println("Watchdog: time until timeout=" + watchdog.getTimeoutTimeRemaining() + " s, countdown=" + watchdog.getCountdownTimeRemaining() + " s");
+			}
+			break;
+		case 'W':
+			if (watchdog != null && settings.devices.xtend900.watchdog != null) {
+				watchdog.startCountdown(settings.devices.xtend900.watchdog.countdown);
+				watchdog.enable();
 			}
 			break;
 		case 's':
