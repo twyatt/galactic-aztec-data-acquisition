@@ -10,6 +10,8 @@ import edu.sdsu.rocket.core.io.ADS1115InputStream;
 import edu.sdsu.rocket.core.io.ADS1115InputStream.ADS1115Reading;
 import edu.sdsu.rocket.core.io.ADXL345InputStream;
 import edu.sdsu.rocket.core.io.ADXL345InputStream.ADXL345Reading;
+import edu.sdsu.rocket.core.io.HMC5883LInputStream;
+import edu.sdsu.rocket.core.io.HMC5883LInputStream.HMC5883LReading;
 import edu.sdsu.rocket.core.io.ITG3205InputStream;
 import edu.sdsu.rocket.core.io.ITG3205InputStream.ITG3205Reading;
 import edu.sdsu.rocket.core.io.MS5611InputStream;
@@ -24,7 +26,7 @@ public class Converter {
 	}
 	
 	public void convert() {
-		System.out.print("Converting ADS1115 ... ");
+		System.out.print("Converting ADC (ADS1115) ... ");
 		try {
 			convertADS1115();
 			System.out.println("Done");
@@ -32,7 +34,7 @@ public class Converter {
 			System.err.println("ADS1115: " + e);
 		}
 		
-		System.out.print("Converting ADXL345 ... ");
+		System.out.print("Converting Accelerometer (ADXL345) ... ");
 		try {
 			convertADXL345();
 			System.out.println("Done");
@@ -40,7 +42,7 @@ public class Converter {
 			System.err.println("ADXL345: " + e);
 		}
 		
-		System.out.print("Converting ITG3205 ... ");
+		System.out.print("Converting Gyroscope (ITG3205) ... ");
 		try {
 			convertITG3205();
 			System.out.println("Done");
@@ -48,7 +50,15 @@ public class Converter {
 			System.err.println("ITG3205: " + e);
 		}
 		
-		System.out.print("Converting MS5611 ... ");
+		System.out.print("Converting Magnetometer (HMC5883L) ... ");
+		try {
+			convertHMC5883L();
+			System.out.println("Done");
+		} catch (IOException e) {
+			System.err.println("HMC5883L: " + e);
+		}
+		
+		System.out.print("Converting Barometer (MS5611) ... ");
 		try {
 			convertMS5611();
 			System.out.println("Done");
@@ -119,6 +129,33 @@ public class Converter {
 		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
 		try {
 			ITG3205Reading reading;
+			while ((reading = in.readReading()) != null) {
+				String[] entries = new String[5];
+				entries[0] = String.valueOf(reading.timestamp);
+				entries[1] = String.valueOf(reading.scalingFactor);
+				entries[2] = String.valueOf(reading.values[0]); // x
+				entries[3] = String.valueOf(reading.values[1]); // y
+				entries[4] = String.valueOf(reading.values[2]); // z
+				writer.writeNext(entries);
+			}
+		} finally {
+			try {
+				in.close();
+			} catch (IOException e) {
+				System.err.println("Failed to close " + name);
+			}
+			writer.close();
+		}
+	}
+	
+	public void convertHMC5883L() throws IOException {
+		String name = "hmc5883l";
+		HMC5883LInputStream in = new HMC5883LInputStream(new FileInputStream(location + File.separator + name + ".log"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		
+		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
+		try {
+			HMC5883LReading reading;
 			while ((reading = in.readReading()) != null) {
 				String[] entries = new String[5];
 				entries[0] = String.valueOf(reading.timestamp);
