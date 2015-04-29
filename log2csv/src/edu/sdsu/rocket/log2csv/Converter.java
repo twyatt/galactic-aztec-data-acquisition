@@ -69,10 +69,12 @@ public class Converter {
 
 	public void convertADS1115() throws IOException {
 		String name = "ads1115";
+		System.out.println(location + File.separator + name + ".log");
 		ADS1115InputStream in = new ADS1115InputStream(new FileInputStream(location + File.separator + name + ".log"));
-		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 		
-		writer.writeNext("Timestamp (ns)", "A0 (mV)", "A1 (mV)", "A2 (mV)", "A3 (mV)");
+		// Timestamp (ns), A0 (mV), A1 (mV), A2 (mV), A3 (mV)
+		writer.writeNext("Timestamp", "A0", "A1", "A2", "A3");
 		try {
 			ADS1115Reading reading;
 			while ((reading = in.readReading()) != null) {
@@ -96,10 +98,12 @@ public class Converter {
 	
 	public void convertADXL345() throws IOException {
 		String name = "adxl345";
+		System.out.println(location + File.separator + name + ".log");
 		ADXL345InputStream in = new ADXL345InputStream(new FileInputStream(location + File.separator + name + ".log"));
-		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 		
-		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
+		// Timestamp (ns), Multiplier, X*Multiplier (G), Y*Multiplier (G), Z*Multiplier (G)
+		writer.writeNext("Timestamp", "Multiplier", "X", "Y", "Z");
 		try {
 			ADXL345Reading reading;
 			while ((reading = in.readReading()) != null) {
@@ -123,10 +127,12 @@ public class Converter {
 	
 	public void convertITG3205() throws IOException {
 		String name = "itg3205";
+		System.out.println(location + File.separator + name + ".log");
 		ITG3205InputStream in = new ITG3205InputStream(new FileInputStream(location + File.separator + name + ".log"));
-		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 		
-		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
+		// Timestamp (ns), Multiplier, X*Multiplier (deg/s), Y*Multiplier (deg/s), Z*Multiplier (deg/s)
+		writer.writeNext("Timestamp", "Multiplier", "X", "Y", "Z");
 		try {
 			ITG3205Reading reading;
 			while ((reading = in.readReading()) != null) {
@@ -150,10 +156,12 @@ public class Converter {
 	
 	public void convertHMC5883L() throws IOException {
 		String name = "hmc5883l";
+		System.out.println(location + File.separator + name + ".log");
 		HMC5883LInputStream in = new HMC5883LInputStream(new FileInputStream(location + File.separator + name + ".log"));
-		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 		
-		writer.writeNext("Timestamp (ns)", "Scaling Factor", "X (Raw)", "Y (Raw)", "Z (Raw)");
+		// Timestamp (ns), Multiplier, X*Multiplier (Gauss), Y*Multiplier (Gauss), Z*Multiplier (Gauss)
+		writer.writeNext("Timestamp", "Multiplier", "X", "Y", "Z");
 		try {
 			HMC5883LReading reading;
 			while ((reading = in.readReading()) != null) {
@@ -177,17 +185,19 @@ public class Converter {
 	
 	public void convertMS5611() throws IOException {
 		String name = "ms5611";
+		System.out.println(location + File.separator + name + ".log");
 		MS5611InputStream in = new MS5611InputStream(new FileInputStream(location + File.separator + name + ".log"));
-		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"));
+		CSVWriter writer = new CSVWriter(new FileWriter(location + File.separator + name + ".csv"), CSVWriter.DEFAULT_SEPARATOR, CSVWriter.NO_QUOTE_CHARACTER);
 		
-		writer.writeNext("Timestamp (ns)", "Temperature (C)", "Pressure (mbar)");
+		// Timestamp (ns), Temperature*100 (C), Pressure*100 (mbar)
+		writer.writeNext("Timestamp", "Temperature", "Pressure");
 		try {
 			MS5611Reading reading;
 			while ((reading = in.readReading()) != null) {
 				String[] entries = new String[3];
 				entries[0] = String.valueOf(reading.timestamp);
-				entries[1] = String.valueOf((float) reading.values[0] / 100f); // C * 100
-				entries[2] = String.valueOf((float) reading.values[1] / 100f); // mbar * 100
+				entries[1] = String.valueOf(reading.values[0]); // C * 100
+				entries[2] = String.valueOf(reading.values[1]); // mbar * 100
 				writer.writeNext(entries);
 			}
 		} finally {
