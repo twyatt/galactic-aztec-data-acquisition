@@ -7,3 +7,18 @@ eclipse {
         name = appName + "-client"
     }
 }
+
+// https://jaxenter.com/tutorial-a-guide-to-the-gradle-javafx-plugin-105730.html
+javafx {
+    // Application name and ID presented by target OS
+    appID 'GalacticAztecClient'
+    appName 'Galactic Aztec Client'
+
+    // Main class of application
+    mainClass 'client.Launcher'
+
+    // JVM arguments, system properties, application command line arguments
+    jvmArgs = ['-XX:+AggressiveOpts', '-XX:CompileThreshold=1']
+    systemProperties = ['prism.disableRegionCaching':'true']
+    arguments = ['-l', '--fast']
+}

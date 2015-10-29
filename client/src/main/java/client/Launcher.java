@@ -18,9 +18,10 @@ public class Launcher extends Application {
 
 	@Override
 	public void start(Stage stage) throws Exception {
-		URL resource = MainController.class.getResource("MainPane.fxml");
+		// http://stackoverflow.com/a/19603055
+		URL resource = getClass().getResource("/MainPane.fxml");
 		FXMLLoader loader = new FXMLLoader(resource);
-		Parent root = (Parent) loader.load();
+		Parent root = loader.load();
 		
 		final MainController controller = loader.getController();
 		Scene scene = new Scene(root);
