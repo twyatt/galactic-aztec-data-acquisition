@@ -44,7 +44,7 @@ project(":server") {
         compile('com.pi4j:pi4j-gpio-extension:1.1-SNAPSHOT') {
             exclude module: 'pi4j-native'
         }
-        compile "net.sf.marineapi:marineapi:0.9.0-SNAPSHOT"
+        compile "net.sf.marineapi:marineapi:0.9.0"
         compile "org.apache.commons:commons-collections4:4.0"
     }
 }
