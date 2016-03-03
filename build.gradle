@@ -31,10 +31,10 @@ project(":core") {
     }
 }
 
-project(":pi") {
+project(":server") {
     dependencies {
         compile project(":core");
-        
+
         compile('com.pi4j:pi4j-core:1.1-SNAPSHOT') {
             exclude module: 'pi4j-native'
         }
@@ -44,16 +44,8 @@ project(":pi") {
         compile('com.pi4j:pi4j-gpio-extension:1.1-SNAPSHOT') {
             exclude module: 'pi4j-native'
         }
-        
         compile "net.sf.marineapi:marineapi:0.9.0-SNAPSHOT"
-    }
-}
-
-project(":server") {
-    dependencies {
-        compile project(":pi");
-	    
-	    compile "org.apache.commons:commons-collections4:4.0"
+        compile "org.apache.commons:commons-collections4:4.0"
     }
 }
 
