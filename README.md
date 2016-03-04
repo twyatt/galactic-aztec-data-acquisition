@@ -26,7 +26,10 @@ The client application can either be started via IntelliJ or command line.
 
 #### IntelliJ
 Run `Launcher.main()`:
+
 ![Run Launcher](artwork/client_launch.png?raw=true)
 
 #### Command Line
+```
 ./gradlew :client:run
+```
