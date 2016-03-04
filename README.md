@@ -18,3 +18,15 @@ Then the server can be started with the following command:
 ```
 sudo java -jar server.jar
 ```
+
+## Client
+### Run
+
+The client application can either be started via IntelliJ or command line.
+
+#### IntelliJ
+Run `Launcher.main()`:
+![Run Launcher](artwork/client_launch.png?raw=true)
+
+#### Command Line
+./gradlew :client:run
