@@ -1,4 +1,5 @@
 # Galactic Aztec Data Acquisition Software
+[![Build Status](https://travis-ci.org/twyatt/galactic-aztec-data-acquisition.svg?branch=master)](https://travis-ci.org/twyatt/galactic-aztec-data-acquisition)
 
 Server and client application suite for reading sensors from a Raspberry Pi and transmitting to a remote client.
 
