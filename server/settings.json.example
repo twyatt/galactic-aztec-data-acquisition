@@ -1,0 +1,55 @@
+{
+	test: true,
+	logging: {
+		dateFormat: "yyyyMMddHHmmss",
+		directories: [
+			"logs"
+		]
+	},
+	server: {
+		port: 4444
+	},
+	devices: {
+		xtend900: {
+			enabled: false,
+			txLedEnabled: true,
+			sendSensorData: true,
+			device: "/dev/ttyAMA0",
+			config: {
+				interfaceDataRate: BAUD_9600,
+				rfDataRate: BAUD_115200,
+				gpo2Configuration: RX_LED,
+				numberBase: DEFAULT_WITH_UNITS,
+				txPowerLevel: TX_1000mW,
+				retries: 0,
+				transmitOnly: TX_ONLY
+			}
+		},
+		adxl345: {
+			enabled: true,
+			logFile: "adxl345.log"
+		},
+		itg3205: {
+			enabled: true,
+			logFile: "itg3205.log"
+		},
+		ms5611: {
+			enabled: true,
+			logFile: "ms5611.log"
+		},
+		hmc5883l: {
+			enabled: true,
+			logFile: "hmc5883l.log"
+		},
+		ads1115: {
+			enabled: true,
+			logFile: "ads1115.log",
+			sequence: [0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3]
+		},
+		gps: {
+			enabled: false,
+			logFile: "gps.txt",
+			device: "/dev/ttyUSB0"
+		}
+	}
+}
