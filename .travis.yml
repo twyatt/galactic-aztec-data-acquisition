@@ -1,5 +1,9 @@
 language: java
-jdk:
-  - oraclejdk8
-script:
-  - ./gradlew :server:dist :client:build
+
+jdk: oraclejdk8
+
+# disable gradle assemble
+# http://stackoverflow.com/a/26575080/196486
+install: /bin/true
+
+script: ./gradlew :server:dist :client:build
