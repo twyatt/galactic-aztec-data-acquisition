@@ -1,13 +1,13 @@
 package edu.sdsu.rocket.server.devices;
 
-import java.io.IOException;
-
-import i2cdevlib.I2Cdev;
 import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
 
+import java.io.IOException;
+
 import edu.sdsu.rocket.server.devices.DeviceManager.Device;
+import i2cdevlib.I2Cdev;
 
 public class ITG3205 implements Device {
 	
@@ -153,7 +153,7 @@ public class ITG3205 implements Device {
      * 
      * @throws IOException 
      */
-	public void setup() throws IOException {
+	public void setup() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		// http://pi4j.com/example/control.html
 		i2c = I2CFactory.getInstance(i2cBus).getDevice(devAddr);
 		

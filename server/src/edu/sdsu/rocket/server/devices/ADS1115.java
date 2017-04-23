@@ -3,9 +3,10 @@ package edu.sdsu.rocket.server.devices;
 import com.pi4j.io.i2c.I2CBus;
 import com.pi4j.io.i2c.I2CDevice;
 import com.pi4j.io.i2c.I2CFactory;
-import edu.sdsu.rocket.server.devices.DeviceManager.Device;
 
 import java.io.IOException;
+
+import edu.sdsu.rocket.server.devices.DeviceManager.Device;
 
 public class ADS1115 implements Device {
 	
@@ -344,7 +345,7 @@ public class ADS1115 implements Device {
      * 
      * @throws IOException 
      */
-	public ADS1115 setup() throws IOException {
+	public ADS1115 setup() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		// http://pi4j.com/example/control.html
 		i2c = I2CFactory.getInstance(i2cBus).getDevice(address.config);
 		return this;

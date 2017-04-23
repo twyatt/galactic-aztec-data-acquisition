@@ -4,6 +4,7 @@ import com.badlogic.gdx.math.Vector3;
 import com.badlogic.gdx.utils.Array;
 import com.badlogic.gdx.utils.Json;
 import com.pi4j.io.gpio.*;
+import com.pi4j.io.i2c.I2CFactory;
 import com.pi4j.io.serial.Serial;
 import com.pi4j.io.serial.SerialFactory;
 import edu.sdsu.rocket.core.helpers.RateLimitedRunnable;
@@ -76,7 +77,7 @@ public class Application {
 		System.out.println("Starting application.");
 	}
 	
-	public void setup() throws IOException {
+	public void setup() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		loadSettings();
 		setupLogging();
 		setupDevices();
@@ -125,7 +126,7 @@ public class Application {
 		System.out.println("Logging started at " + System.nanoTime() + ".");
 	}
 	
-	protected void setupDevices() throws IOException {
+	protected void setupDevices() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		setupAccelerometer();
 		setupGyroscope();
 		setupMagnetometer();
@@ -143,7 +144,7 @@ public class Application {
 		}
 	}
 	
-	private void setupAccelerometer() throws IOException {
+	private void setupAccelerometer() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		if (!settings.devices.adxl345.enabled) return;
 		System.out.println("Setup Accelerometer [ADXL345].");
 		final ADXL345OutputStream adxl345log = log.getADXL345OutputStream();
@@ -182,7 +183,7 @@ public class Application {
 //			.setThrottle(settings.devices.adxl345.throttle);
 	}
 
-	private void setupGyroscope() throws IOException, FileNotFoundException {
+	private void setupGyroscope() throws IOException, FileNotFoundException, I2CFactory.UnsupportedBusNumberException {
 		if (!settings.devices.itg3205.enabled) return;
 		System.out.println("Setup Gyroscope [ITG3205].");
 		final ITG3205OutputStream itg3205log = log.getITG3205OutputStream();
@@ -221,7 +222,7 @@ public class Application {
 //			.setThrottle(settings.devices.itg3205.throttle);
 	}
 	
-	private void setupMagnetometer() throws IOException, FileNotFoundException {
+	private void setupMagnetometer() throws IOException, FileNotFoundException, I2CFactory.UnsupportedBusNumberException {
 		if (!settings.devices.hmc5883l.enabled) return;
 		System.out.println("Setup Magnetometer [HMC5883L].");
 		final HMC5883LOutputStream hmc5883llog = log.getHMC5883LOutputStream();
@@ -261,7 +262,7 @@ public class Application {
 			.setSleep(hmc5883l.getDataOutputRate().getDelay());
 	}
 	
-	private void setupBarometer() throws IOException {
+	private void setupBarometer() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		if (!settings.devices.ms5611.enabled) return;
 		System.out.println("Setup Barometer [MS5611].");
 		final MS5611OutputStream ms5611log = log.getMS5611OutputStream();
@@ -301,7 +302,7 @@ public class Application {
 //			.setThrottle(settings.devices.ms5611.throttle);
 	}
 
-	private void setupADC() throws IOException {
+	private void setupADC() throws IOException, I2CFactory.UnsupportedBusNumberException {
 		if (!settings.devices.ads1115.enabled) return;
 		System.out.println("Setup ADC [ADS1115].");
 		final ADS1115OutputStream ads1115log = log.getADS1115OutputStream();

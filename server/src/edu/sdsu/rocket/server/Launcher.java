@@ -1,5 +1,7 @@
 package edu.sdsu.rocket.server;
 
+import com.pi4j.io.i2c.I2CFactory;
+
 import java.io.IOException;
 
 public class Launcher {
@@ -10,7 +12,7 @@ public class Launcher {
 		return args;
 	}
 
-	public static void main(String[] args) throws IOException {
+	public static void main(String[] args) throws IOException, I2CFactory.UnsupportedBusNumberException {
 		Launcher.args = args;
 		
 		Application app = new Application();
