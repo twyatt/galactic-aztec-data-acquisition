@@ -35,13 +35,13 @@ project(":server") {
     dependencies {
         compile project(":core");
 
-        compile('com.pi4j:pi4j-core:1.1-SNAPSHOT') {
+        compile('com.pi4j:pi4j-core:1.1') {
             exclude module: 'pi4j-native'
         }
-        compile('com.pi4j:pi4j-device:1.1-SNAPSHOT') {
+        compile('com.pi4j:pi4j-device:1.1') {
             exclude module: 'pi4j-native'
         }
-        compile('com.pi4j:pi4j-gpio-extension:1.1-SNAPSHOT') {
+        compile('com.pi4j:pi4j-gpio-extension:1.1') {
             exclude module: 'pi4j-native'
         }
         compile "net.sf.marineapi:marineapi:0.9.0"
